@@ -108,10 +108,16 @@ def find_path_a_star(map, start_pos, dest_pos):
     # Define neighbor nodes
     neighbor_positions = ((0, -1), (0, 1), (-1, 0), (1, 0),)
 
-    # Iterate until destination is found
+    # Iterate until destination 
     num_iterations = 0
+
     current_node = start_node
     while current_node != dest_node:
+        # If open_list is empty, then there is no possible path
+        if not open_list:
+            print("ERROR: find_path_a_star: no possible path from", current_node.position, "to", dest_node.position)
+            return None
+
         # Select current node for currenet iteration
         current_node = heapq.heappop(open_list)
         num_iterations += 1
@@ -243,7 +249,19 @@ def example(print_maze = True):
         [0,0,0,0,0,0,0,0,0]
     ]
 
-    maze = maze1
+    maze4 = [
+        [0,0,0,0,0,0,0,0,0],
+        [0,1,0,1,0,1,0,1,0],
+        [0,0,0,0,0,0,0,0,0],
+        [0,1,0,1,0,1,0,1,0],
+        [0,0,0,0,0,0,0,0,0],
+        [0,1,1,1,1,1,1,1,0],
+        [0,0,0,0,0,0,0,0,0],
+        [1,1,1,1,1,1,1,1,1],
+        [0,0,0,0,0,0,0,0,0]
+    ]
+
+    maze = maze2
     
     start = (0, 0)
     end = (len(maze)-1, len(maze[0])-1)
@@ -251,19 +269,24 @@ def example(print_maze = True):
     path = find_path_a_star(maze, start, end)
 
     if print_maze:
-      for step in path:
-        maze[step[0]][step[1]] = 2
+        if path:
+            for step in path:
+                maze[step[0]][step[1]] = 2
       
-      for row in maze:
-        line = []
-        for col in row:
-          if col == 1:
+        border = "\u2588" * (len(maze) + 2) * 2
+        print(border)
+        for row in maze:
+            line = ["\u2588\u2588"]
+            for col in row:
+                if col == 1:
+                    line.append("\u2588\u2588")
+                elif col == 0:
+                    line.append("  ")
+                elif col == 2:
+                    line.append(". ")
             line.append("\u2588\u2588")
-          elif col == 0:
-            line.append("  ")
-          elif col == 2:
-            line.append(". ")
-        print("".join(line))
+            print("".join(line))
+        print(border)
 
     print(path)
 
