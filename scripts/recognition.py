@@ -7,6 +7,8 @@ import numpy as np
 import rospy
 import time
 
+from gazebo_msgs.msg import ModelState
+from gazebo_msgs.srv import SetModelState
 from sensor_msgs.msg import Image, LaserScan
 
 class Recognition(object):
@@ -76,7 +78,7 @@ class Recognition(object):
 
         masks = {}
         targets = {}
-        for c in self.color_bounds.keys()
+        for c in self.color_bounds.keys():
             masks[c] = cv2.inRange(img, self.color_bounds[c][0], self.color_bounds[c][1])
             targets[c] = cv2.bitwise_and(img, img, mask=masks[c])
 
