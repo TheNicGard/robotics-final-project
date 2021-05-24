@@ -39,7 +39,31 @@ class DuckExpress(object):
     def get_map(self, data):
         self.map = data
 
-        print(self.map)
+        for i in range(self.map.info.width, 0, -1):
+            counter = 0
+            avg = 0
+            for j in range(self.map.info.height):
+                avg += self.map.data[i - j*self.map.info.width]
+                counter += 1
+                if counter == 1:
+                    avg = int(avg / counter)
+                    if avg < 0:
+                        print("++", end="")
+                    elif avg < 10:
+                        print("  ", end="")
+                    else:
+                        print("\u2588\u2588", end="")
+                    counter = 0
+                    avg = 0
+
+            print("")
+
+    def translate_map(self):
+        if not self.initialized:
+            return
+
+        
+
 
     def run(self):
         rospy.spin()
