@@ -62,7 +62,7 @@ orders of magnitude longer. We are not sure why.
 """
 
 
-class Node(object):
+class AStarNode(object):
     """ Node for A* algorithm """
     def __init__(self, parent=None, position=None):
         self.parent = parent
@@ -96,8 +96,8 @@ def euclidean_distance(x_node, y_node):
 def find_path_a_star(map, start_pos, dest_pos):
     """ Use A* algorithm to find a shortest path between start_pos and dest_pos """
     # Initialize nodes
-    start_node = Node(position=start_pos)
-    dest_node = Node(position=dest_pos)
+    start_node = AStarNode(position=start_pos)
+    dest_node = AStarNode(position=dest_pos)
 
     # Initialize open and closed lists
     open_list = []
@@ -149,7 +149,7 @@ def find_path_a_star(map, start_pos, dest_pos):
                 continue
 
             # Add neighbor node and set parent to current node
-            neighbor = Node(parent=current_node, position=neighbor_pos)
+            neighbor = AStarNode(parent=current_node, position=neighbor_pos)
             neighbors.append(neighbor)
 
         # Add neighbors to open list
@@ -290,4 +290,5 @@ def example(print_maze = True):
 
     print(path)
 
-example()
+if __name__ == "__main__":
+    example()
