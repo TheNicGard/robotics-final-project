@@ -1,5 +1,8 @@
 import heapq
+import math
 from pprint import pprint
+
+ALGO_TYPE = "euclidean"
 
 """
 A* (pronounced "a star") works by modifying Dijkstra's algorithm to find a likely candidate for the
@@ -62,7 +65,7 @@ orders of magnitude longer. We are not sure why.
 """
 
 
-class Node(object):
+class AStarNode(object):
     """ Node for A* algorithm """
     def __init__(self, parent=None, position=None):
         self.parent = parent
@@ -88,16 +91,18 @@ class Node(object):
         return f"[{self.position}] - f({self.f}) = g({self.g}) + h({self.h})"
 
 
-def euclidean_distance(x_node, y_node):
+def heuristic_distance(x_node, y_node):
     """ Calculate Euclidean distance for two nodes """
-    return ((x_node.position[0] - y_node.position[0]) ** 2) + ((x_node.position[1] - y_node.position[1]) ** 2)
-    # return abs(x_node.position[0] - y_node.position[0]) + abs(x_node.position[1] - y_node.position[1])
+    if ALGO_TYPE == "euclidean":
+        return math.sqrt(((x_node.position[0] - y_node.position[0]) ** 2) + ((x_node.position[1] - y_node.position[1]) ** 2))
+    elif ALGO_TYPE == "manhattan":
+        return abs(x_node.position[0] - y_node.position[0]) + abs(x_node.position[1] - y_node.position[1])
 
 def find_path_a_star(map, start_pos, dest_pos):
     """ Use A* algorithm to find a shortest path between start_pos and dest_pos """
     # Initialize nodes
-    start_node = Node(position=start_pos)
-    dest_node = Node(position=dest_pos)
+    start_node = AStarNode(position=start_pos)
+    dest_node = AStarNode(position=dest_pos)
 
     # Initialize open and closed lists
     open_list = []
@@ -149,7 +154,7 @@ def find_path_a_star(map, start_pos, dest_pos):
                 continue
 
             # Add neighbor node and set parent to current node
-            neighbor = Node(parent=current_node, position=neighbor_pos)
+            neighbor = AStarNode(parent=current_node, position=neighbor_pos)
             neighbors.append(neighbor)
 
         # Add neighbors to open list
@@ -161,7 +166,7 @@ def find_path_a_star(map, start_pos, dest_pos):
 
             # Initialize neighbor; since all paths are same length we just assign their weight a value of 1
             # Note the use of Manhattan rather than Euclidean distance for heuristic
-            neighbor.h = euclidean_distance(neighbor, dest_node)
+            neighbor.h = heuristic_distance(neighbor, dest_node)
             neighbor.g = current_node.g + 1
             neighbor.f = neighbor.g + neighbor.h
 
@@ -187,8 +192,8 @@ def find_path_a_star(map, start_pos, dest_pos):
         best_path.insert(0, back_node.position) # prepend
         back_node = back_node.parent
 
-    print("Path is", len(best_path), "nodes long.")
-    print("Heuristic would predict path of", euclidean_distance(start_node, dest_node), "nodes long")
+    print("Path is", len(best_path) - 1, "edges long.")
+    print("Heuristic (" + ALGO_TYPE + ") would predict path of", heuristic_distance(start_node, dest_node), "edges long")
     return best_path
 
 def example(print_maze = True):
@@ -239,9 +244,9 @@ def example(print_maze = True):
 
     maze3 = [
         [0,0,0,0,0,0,0,0,0],
-        [0,1,0,1,0,1,0,1,0],
+        [0,1,0,1,0,1,1,1,0],
         [0,0,0,0,0,0,0,0,0],
-        [0,1,0,1,0,1,0,1,0],
+        [0,1,0,1,0,1,1,1,0],
         [0,0,0,0,0,0,0,0,0],
         [0,1,1,1,1,1,1,1,0],
         [0,0,0,0,0,0,0,0,0],
@@ -273,21 +278,33 @@ def example(print_maze = True):
             for step in path:
                 maze[step[0]][step[1]] = 2
       
-        border = "\u2588" * (len(maze) + 2) * 2
+        border = "\u2588" * (len(maze[0]) + 2) * 2
         print(border)
+        skip = False
+        row_num = 0
         for row in maze:
             line = ["\u2588\u2588"]
             for col in row:
+                # if (row_num, col) == start: line = ["  "]
                 if col == 1:
                     line.append("\u2588\u2588")
                 elif col == 0:
                     line.append("  ")
                 elif col == 2:
                     line.append(". ")
-            line.append("\u2588\u2588")
+                # if (row_num, col) == end: 
+                #     line.append(" \u2588")
+                #     skip = True
+            if not skip:
+                line.append("\u2588\u2588")
             print("".join(line))
+            row_num += 1
         print(border)
 
-    print(path)
+    # print(path)
+    print("")
 
-example()
+if __name__ == "__main__":
+    example()
+    ALGO_TYPE = "manhattan"
+    example()
