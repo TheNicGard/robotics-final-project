@@ -4848,7 +4848,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/ngard/catkin_ws/src/robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
+              <uri>model://robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
               <scale>1 1 1</scale>
             </mesh>
           </geometry>
@@ -4875,7 +4875,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/ngard/catkin_ws/src/robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
+              <uri>model://robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
               <scale>1 1 1</scale>
             </mesh>
           </geometry>
@@ -4953,7 +4953,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/ngard/catkin_ws/src/robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
+              <uri>model://robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
               <scale>1 1 1</scale>
             </mesh>
           </geometry>
@@ -4980,7 +4980,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/ngard/catkin_ws/src/robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
+              <uri>model://robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
               <scale>1 1 1</scale>
             </mesh>
           </geometry>
@@ -5058,7 +5058,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/ngard/catkin_ws/src/robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
+              <uri>model://robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
               <scale>1 1 1</scale>
             </mesh>
           </geometry>
@@ -5085,7 +5085,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/ngard/catkin_ws/src/robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
+              <uri>model://robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
               <scale>1 1 1</scale>
             </mesh>
           </geometry>
@@ -5163,7 +5163,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/ngard/catkin_ws/src/robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
+              <uri>model://robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
               <scale>1 1 1</scale>
             </mesh>
           </geometry>
@@ -5190,7 +5190,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/ngard/catkin_ws/src/robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
+              <uri>model://robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
               <scale>1 1 1</scale>
             </mesh>
           </geometry>
@@ -5268,7 +5268,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/ngard/catkin_ws/src/robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
+              <uri>model://robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
               <scale>1 1 1</scale>
             </mesh>
           </geometry>
@@ -5295,7 +5295,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/ngard/catkin_ws/src/robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
+              <uri>model://robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
               <scale>1 1 1</scale>
             </mesh>
           </geometry>
@@ -5373,7 +5373,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/ngard/catkin_ws/src/robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
+              <uri>model://robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
               <scale>1 1 1</scale>
             </mesh>
           </geometry>
@@ -5400,7 +5400,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <mesh>
-              <uri>/home/ngard/catkin_ws/src/robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
+              <uri>model://robotics-final-project/gazebo_custom_meshes/robot_dumbbell_red.dae</uri>
               <scale>1 1 1</scale>
             </mesh>
           </geometry>
