@@ -7,8 +7,6 @@ import numpy as np
 import rospy
 import time
 
-from gazebo_msgs.msg import ModelState
-from gazebo_msgs.srv import SetModelState
 from sensor_msgs.msg import Image, LaserScan
 
 class Recognition(object):
@@ -41,10 +39,18 @@ class Recognition(object):
         }
 
         """
-        what percentage of the horizontal FOV the robot uses to determine the color
-        in front of it
+        What percentage of the FOV, in the center, that the robot uses to
+        determine the color in front of it
         """
-        self.horizontal_field_percent = 0.25
+        self.horizontal_field_percent = 0.10
+        self.vertical_field_percent = 0.10
+
+        """
+        What percentage of the vertical FOV, from the bottom, the robot searches
+        for yellow pixels of the navigation line. Set to 1 to include the whole
+        image.
+        """
+        self.nav_line_horizon = 1
         
         self.initialized = True
 
@@ -69,7 +75,12 @@ class Recognition(object):
         self.capture_image = True
         while self.capture_image:
             time.sleep(1)
-    
+
+    """
+    search_view_for_color: Returns the color in front of the robot.
+    Adjust horizontal_field_percent and vertical_field_percent to adjust the
+    amount of the FOV used in color detection.
+    """
     def search_view_for_color(self):
         self.save_next_img()
 
@@ -83,29 +94,78 @@ class Recognition(object):
             targets[c] = cv2.bitwise_and(img, img, mask=masks[c])
 
         all_targets = targets["red"]
-        for c in ["orange", "yellow", "green", "cyan", "blue", "magenta"]:
+        for c in ["orange", "green", "cyan", "blue", "magenta"]:
             all_targets = cv2.bitwise_or(targets[c], all_targets)
 
-        cv2.imshow("image", all_targets)
-        cv2.waitKey(0)
-
-        return
+        # cv2.imshow("image", all_targets)
+        # cv2.waitKey(0)
+        # cv2.imwrite("./mask.png", all_targets)
         
         # check the center of the image for the most common color
-        red_total, green_total, blue_total = 0, 0, 0
-        img_center_w = int(img.shape[1] / 2)
-        img_start_x = int(img_center_w - ((img.shape[1] * self.horizontal_field_percent) / 2))
-        img_end_x = int(img_center_w + ((img.shape[1] * self.horizontal_field_percent) / 2))
+        img_center_w = int(self.image_width / 2)
+        img_start_x = int(img_center_w - ((self.image_width * self.horizontal_field_percent) / 2))
+        img_end_x = int(img_center_w + ((self.image_width * self.horizontal_field_percent) / 2))
+
+        img_center_h = int(self.image_height / 2)
+        img_start_y = int(img_center_h - ((self.image_height * self.vertical_field_percent) / 2))
+        img_end_y = int(img_center_h + ((self.image_height * self.vertical_field_percent) / 2))
         
-        for i in range(img.shape[0]):
+        totals = {
+            "red": 0,
+            "orange": 0,
+            "green": 0,
+            "cyan": 0,
+            "blue": 0,
+            "magenta": 0
+        }
+                    
+        for i in range(img_start_y, img_end_y):
             for j in range(img_start_x, img_end_x):
-                if not np.array_equal(blue_target[i, j], [0, 0, 0]):
-                    blue_total += 1
-                if not np.array_equal(green_target[i, j], [0, 0, 0]):
-                    green_total += 1
-                if not np.array_equal(red_target[i, j], [0, 0, 0]):
-                    red_total += 1
+                for k in totals.keys():
+                    if not np.array_equal(targets[k][i, j], [0, 0, 0]):
+                        totals[k] += 1
+
+        # guess the color in front of the robot        
+        if max(totals.values()) == 0:
+            print("Didn't detect a defined color!")
+            return None
+        for k in totals.keys():
+            if max(totals.values()) == totals[k]:
+                print("Detected:", k)
+                return k
+
+    """
+    get_nav_line_moment: Get the center position of the blob of the yellow
+    navigation line on the screen. Retuns None if there are no yellow pixels.
+    """
+    def get_nav_line_moment(self):
+        self.save_next_img()
+
+        # take the ROS message with the image and turn it into a format cv2 can use
+        img = self.bridge.imgmsg_to_cv2(self.image_capture, desired_encoding='bgr8')
+
+        # get the horizon mask
+        # cite: https://www.pyimagesearch.com/2021/01/19/image-masking-with-opencv/
+        horizon_mask = np.zeros(img.shape[:2], dtype="uint8")
+        cv2.rectangle(horizon_mask, (0, self.image_height - int(self.nav_line_horizon * self.image_height)), (self.image_width, self.image_height), 255, -1)
+        img = cv2.bitwise_and(img, img, mask=horizon_mask)
+
+        # get the yellow pixels in the image
+        yellow_mask = cv2.inRange(img, self.color_bounds["yellow"][0], self.color_bounds["yellow"][1])
+        yellow_target = cv2.bitwise_and(img, img, mask=yellow_mask)
+
+        # get the moment of the yellow lines
+        gray_img = cv2.cvtColor(yellow_target, cv2.COLOR_BGR2GRAY)
+        M = cv2.moments(gray_img)
+        if M['m00'] > 0:
+            # center of the yellow pixels in the image
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+            return cx, cy
+        else:
+            return None
 
 if __name__=="__main__":
     rec = Recognition()
     rec.search_view_for_color()
+    print(rec.get_nav_line_moment())
