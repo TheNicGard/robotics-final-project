@@ -89,9 +89,9 @@
     </spherical_coordinates>
     <state world_name='default'>
       <sim_time>133 316000000</sim_time>
-      <real_time>3 687319012</real_time>
-      <wall_time>1622064752 851116228</wall_time>
-      <iterations>476</iterations>
+      <real_time>0 0</real_time>
+      <wall_time>1622223468 908264272</wall_time>
+      <iterations>0</iterations>
       <model name='A1'>
         <pose>4.5 1.5 0.499995 1e-05 -1e-06 0.103985</pose>
         <scale>0.934527 1 1</scale>
@@ -153,13 +153,13 @@
         </link>
       </model>
       <model name='Blue_Dumbbell'>
-        <pose>-2.21761 1.54737 0.1905 -2e-06 -3e-06 -3.6e-05</pose>
+        <pose>-2.21761 1.54737 0.1905 -0 -3e-06 -3.6e-05</pose>
         <scale>1 1 1</scale>
         <link name='link_0'>
           <pose>-2.21761 1.54737 0.1905 1.5708 -3e-06 -3.6e-05</pose>
           <velocity>-0.000532 0.000129 -0.000201 -0.000676 -0.002791 2e-06</velocity>
-          <acceleration>-0.574067 0.554179 -0.331736 0.231021 -0.128067 3.1415</acceleration>
-          <wrench>-0.574067 0.554179 -0.331736 0 -0 0</wrench>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='C1_0'>
@@ -178,8 +178,8 @@
         <link name='link_4'>
           <pose>-1.5 -4.5 0.499995 8e-06 -0 0.03295</pose>
           <velocity>0.000137 -0.004142 -0.004895 0.008283 0.000273 -0</velocity>
-          <acceleration>0.001236 -0.035795 -9.74946 0.07163 0.002482 0</acceleration>
-          <wrench>0.001236 -0.035795 -9.74946 0 -0 0</wrench>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='C4'>
@@ -188,18 +188,18 @@
         <link name='link_4'>
           <pose>-1.5 -7.5 0.499995 1e-05 0 -0.085177</pose>
           <velocity>-0.000404 -0.004736 -0.004752 0.009472 -0.000808 0</velocity>
-          <acceleration>-0.037547 -0.438527 -9.06644 0.877084 -0.07508 -8e-06</acceleration>
-          <wrench>-0.037547 -0.438527 -9.06644 0 -0 0</wrench>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='Cyan_Dumbbell'>
-        <pose>3.79802 -7.49352 0.1905 -4e-06 0 1.5e-05</pose>
+        <pose>3.79802 -7.49352 0.1905 0 -0 1.5e-05</pose>
         <scale>1 1 1</scale>
         <link name='link_0'>
           <pose>3.79802 -7.49352 0.1905 1.5708 -0 1.5e-05</pose>
           <velocity>0.000324 7e-06 4.9e-05 -3e-05 0.001704 2.6e-05</velocity>
-          <acceleration>0.590566 0.01045 0.118273 3.08719 0.038349 -3.09188</acceleration>
-          <wrench>0.590566 0.01045 0.118273 0 -0 0</wrench>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='D1'>
@@ -208,8 +208,8 @@
         <link name='link_4'>
           <pose>-4.5 1.5 0.5 0 -0 0</pose>
           <velocity>0.003318 0.002632 -0.003713 -0.005265 0.006635 0</velocity>
-          <acceleration>1.97323 1.40491 -5.20193 0.331741 -0.80485 3.14156</acceleration>
-          <wrench>1.97323 1.40491 -5.20193 0 -0 0</wrench>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='D2'>
@@ -218,8 +218,8 @@
         <link name='link_4'>
           <pose>-4.5 -1.5 0.310137 0 0 -0.174068</pose>
           <velocity>0.001132 0.000943 0.00608 -0.003039 0.00365 0</velocity>
-          <acceleration>2.2642 1.88527 12.1605 0.20435 1.01745 0</acceleration>
-          <wrench>2.2642 1.88527 12.1605 0 -0 0</wrench>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='D3_0'>
@@ -233,43 +233,43 @@
         </link>
       </model>
       <model name='Green_Dumbbell_0'>
-        <pose>3.77118 -1.43336 0.1905 -4e-06 -0 9e-06</pose>
+        <pose>3.77118 -1.43336 0.1905 0 -0 9e-06</pose>
         <scale>1 1 1</scale>
         <link name='link_0'>
           <pose>3.77118 -1.43336 0.1905 1.5708 -0 9e-06</pose>
           <velocity>0.000285 7e-06 8.9e-05 -2.6e-05 0.001497 2.6e-05</velocity>
-          <acceleration>0.593649 0.01049 0.170069 3.08695 0.022143 -3.09157</acceleration>
-          <wrench>0.593649 0.01049 0.170069 0 -0 0</wrench>
+          <acceleration>0 0 0 -0 -0 -0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='Magenta_Dumbbell'>
-        <pose>-5.38878 1.52123 0.1905 -3e-06 -0 1.7e-05</pose>
+        <pose>-5.38878 1.52123 0.1905 0 -0 1.7e-05</pose>
         <scale>1 1 1</scale>
         <link name='link_0'>
           <pose>-5.38878 1.52123 0.1905 1.5708 -0 1.7e-05</pose>
           <velocity>-0.000238 -8.1e-05 0.009711 0.000427 -0.001247 3e-06</velocity>
-          <acceleration>-0.500253 -0.087658 19.4058 -2.69027 -0.514243 3.11835</acceleration>
-          <wrench>-0.500253 -0.087658 19.4058 0 -0 0</wrench>
+          <acceleration>0 0 0 -0 -0 -0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='Orange_Dumbbell'>
-        <pose>-5.27009 -4.49728 0.1905 -7e-06 -6e-06 -4e-05</pose>
+        <pose>-5.27009 -4.49728 0.1905 -1e-05 -6e-06 -4e-05</pose>
         <scale>1 1 1</scale>
         <link name='link_0'>
           <pose>-5.27009 -4.49728 0.1905 1.57079 -6e-06 -4e-05</pose>
           <velocity>2e-06 0.000704 -0.00024 -0.003713 -5e-06 -4.9e-05</velocity>
-          <acceleration>0.487867 0.503177 -1.50329 0.501121 0.593759 -3.14085</acceleration>
-          <wrench>0.487867 0.503177 -1.50329 0 -0 0</wrench>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='Red_Dumbbell'>
-        <pose>3.7859 1.50228 0.1905 -4e-06 1e-06 -4.2e-05</pose>
+        <pose>3.7859 1.50228 0.1905 0 1e-06 -4.2e-05</pose>
         <scale>1 1 1</scale>
         <link name='link_0'>
           <pose>3.7859 1.50228 0.1905 1.5708 1e-06 -4.2e-05</pose>
           <velocity>0.000324 7e-06 -5.7e-05 -3e-05 0.001701 2.4e-05</velocity>
-          <acceleration>0.57807 0.010018 -0.091517 3.08874 0.103962 -3.09202</acceleration>
-          <wrench>0.57807 0.010018 -0.091517 0 -0 0</wrench>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='ground_plane'>
@@ -287,57 +287,97 @@
         <scale>1 1 1</scale>
         <link name='base_footprint'>
           <pose>-6.47854 3.54754 0.000857 -0.000996 0.05293 0.005103</pose>
-          <velocity>0.00294 -0.003151 -0.009277 -0.056304 0.149475 0.003013</velocity>
-          <acceleration>6.12374 -5.24189 -4.01556 -2.39965 0.325709 0.550771</acceleration>
-          <wrench>11.2437 -9.62453 -7.37289 0 -0 0</wrench>
+          <velocity>-0.000315 -0.004361 -0.010064 -0.056304 0.149475 0.003013</velocity>
+          <acceleration>0 0 0 8e-06 3e-06 7e-06</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
         <link name='gripper_link'>
           <pose>-6.72375 3.71243 0.353126 -3.09837 -0.641338 2.42657</pose>
           <velocity>0.076869 0.20117 0.015986 0.062435 0.257782 -0.031881</velocity>
-          <acceleration>496.212 890.769 -16.6387 0.717702 -0.999785 0.896164</acceleration>
-          <wrench>0.496212 0.890769 -0.016639 0 -0 0</wrench>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
         <link name='gripper_link_sub'>
           <pose>-6.73694 3.69641 0.353845 -3.09837 -0.641338 2.42657</pose>
           <velocity>0.53096 0.753127 -0.006199 0.062365 0.257835 -0.031939</velocity>
-          <acceleration>495.31 888.02 -17.6548 0.59841 -1.09109 0.796338</acceleration>
-          <wrench>0.49531 0.88802 -0.017655 0 -0 0</wrench>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
         <link name='link2'>
           <pose>-6.55219 3.54728 0.122924 -0.034663 0.040008 -0.690535</pose>
-          <velocity>0.02259 0.002613 0.001668 -0.050086 0.135497 -0.027951</velocity>
-          <acceleration>7.71204 -7.34264 -4.07751 -1.87119 1.25454 -2.33025</acceleration>
-          <wrench>0.758917 -0.722566 -0.401255 0 -0 0</wrench>
+          <velocity>0.016154 0.000314 0.002056 -0.050086 0.135497 -0.027951</velocity>
+          <acceleration>0 0 0 -0.002087 -0.000885 -0.000755</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
         <link name='link3'>
           <pose>-6.54912 3.54736 0.180843 -2.86777 -1.4424 2.18077</pose>
-          <velocity>0.030664 0.005747 0.001251 0.130932 0.34855 -0.036287</velocity>
-          <acceleration>5.43112 -7.4232 63.6157 0.493227 0.687437 -0.200298</acceleration>
-          <wrench>0.752259 -1.02818 8.81135 0 -0 0</wrench>
+          <velocity>0.029109 0.002587 -0.034714 0.130932 0.34855 -0.036287</velocity>
+          <acceleration>0 0 0 0.001786 0.003515 0.036821</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
         <link name='link4'>
           <pose>-6.64926 3.63022 0.188866 -3.04496 -1.20376 2.36221</pose>
-          <velocity>0.036555 0.008478 0.047047 -0.659444 -0.613221 0.010313</velocity>
-          <acceleration>-112.868 80.6284 22.908 -0.542051 -1.33473 -0.021456</acceleration>
-          <wrench>-14.9828 10.7031 3.04095 0 -0 0</wrench>
+          <velocity>0.088773 -0.047179 0.076631 -0.659444 -0.613221 0.010313</velocity>
+          <acceleration>0 0 0 -0.016599 0.017549 0.024493</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
         <link name='link5'>
           <pose>-6.68091 3.6615 0.304607 -3.09837 -0.641338 2.42657</pose>
-          <velocity>-0.034695 0.084553 0.007011 0.062483 0.257745 -0.031841</velocity>
-          <acceleration>-151.746 103.969 19.1197 0.99585 -0.937101 0.945663</acceleration>
-          <wrench>-0.303491 0.207937 0.038239 0 -0 0</wrench>
+          <velocity>-0.048373 0.085804 -0.009705 0.062483 0.257745 -0.031841</velocity>
+          <acceleration>0 0 0 2.2e-05 -3e-06 2e-05</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
         <link name='wheel_left_link'>
           <pose>-6.47754 3.69158 0.033667 -1.571 0.148659 0.005084</pose>
           <velocity>0.007396 -0.001291 -0.017526 -0.056309 0.149474 0.003011</velocity>
-          <acceleration>6.01531 -5.19395 -4.34092 -2.40818 0.167501 1.01452</acceleration>
-          <wrench>0.17143 -0.148022 -0.123711 0 -0 0</wrench>
+          <acceleration>0 0 0 0.000387 3e-06 0.007078</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
         <link name='wheel_right_link'>
           <pose>-6.47605 3.40358 0.033986 -1.57082 0.160697 0.005011</pose>
           <velocity>0.007054 -0.000664 0.000508 0.019518 0.205064 -0.000938</velocity>
-          <acceleration>3.69706 -3.98729 0.502626 -1.87054 1.25602 1.29803</acceleration>
-          <wrench>0.105362 -0.113633 0.014324 0 -0 0</wrench>
+          <acceleration>0 0 0 -0.000167 -1e-06 -0.00361</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='unit_box'>
+        <pose>1.5302 1.50424 0.5 0 -0 0.355402</pose>
+        <scale>0.822948 1.06091 1</scale>
+        <link name='link'>
+          <pose>1.5302 1.50424 0.5 0 -0 0.355402</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='unit_box_0'>
+        <pose>-4.52355 -7.53568 0.5 0 -0 0</pose>
+        <scale>0.713127 0.777073 1</scale>
+        <link name='link'>
+          <pose>-4.52355 -7.53568 0.5 0 -0 0</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='unit_box_1'>
+        <pose>-1.49275 -1.49365 1.41162 0 -0 1.06851</pose>
+        <scale>1 1 2.78145</scale>
+        <link name='link'>
+          <pose>-1.49275 -1.49365 1.41162 0 -0 1.06851</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
+        </link>
+      </model>
+      <model name='unit_box_2'>
+        <pose>4.48445 -4.47124 0.5 0 0 -0.045202</pose>
+        <scale>1 1 1</scale>
+        <link name='link'>
+          <pose>4.48445 -4.47124 0.5 0 0 -0.045202</pose>
+          <velocity>0 0 0 0 -0 0</velocity>
+          <acceleration>0 0 0 0 -0 0</acceleration>
+          <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='yellow line'>
@@ -666,7 +706,7 @@
     </state>
     <gui fullscreen='0'>
       <camera name='user_camera'>
-        <pose>-13.1756 1.32945 15.6348 0 0.958289 -0.255463</pose>
+        <pose>-12.6803 0.658584 16.0906 0 0.958289 -0.255463</pose>
         <view_controller>orbit</view_controller>
         <projection_type>perspective</projection_type>
       </camera>
@@ -694,7 +734,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <box>
-              <size>0.840902 1 1</size>
+              <size>0.840901 1 1</size>
             </box>
           </geometry>
           <material>
@@ -720,7 +760,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <box>
-              <size>0.840902 1 1</size>
+              <size>0.840901 1 1</size>
             </box>
           </geometry>
           <surface>
@@ -1003,7 +1043,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <box>
-              <size>1 0.846413 1</size>
+              <size>1 0.84641 1</size>
             </box>
           </geometry>
           <material>
@@ -1029,7 +1069,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <box>
-              <size>1 0.846413 1</size>
+              <size>1 0.84641 1</size>
             </box>
           </geometry>
           <surface>
@@ -4202,7 +4242,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <box>
-              <size>1 0.92038 1</size>
+              <size>1 0.920378 1</size>
             </box>
           </geometry>
           <material>
@@ -4228,7 +4268,7 @@
           <pose>0 0 0 0 -0 0</pose>
           <geometry>
             <box>
-              <size>1 0.92038 1</size>
+              <size>1 0.920378 1</size>
             </box>
           </geometry>
           <surface>
@@ -5002,6 +5042,218 @@
       <static>1</static>
       <allow_auto_disable>1</allow_auto_disable>
       <pose>-4.5 -4.5 0.5 0 -0 0</pose>
+    </model>
+    <model name='unit_box'>
+      <pose>1.5302 1.50424 0.5 0 -0 0</pose>
+      <link name='link'>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.166667</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.166667</iyy>
+            <iyz>0</iyz>
+            <izz>0.166667</izz>
+          </inertia>
+          <pose>0 0 0 0 -0 0</pose>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>1 1 1</size>
+            </box>
+          </geometry>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+          <max_contacts>10</max_contacts>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>1 1 1</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <name>Gazebo/Grey</name>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <enable_wind>0</enable_wind>
+        <kinematic>0</kinematic>
+      </link>
+    </model>
+    <model name='unit_box_0'>
+      <pose>-4.52355 -7.53568 0.5 0 -0 0</pose>
+      <link name='link'>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.166667</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.166667</iyy>
+            <iyz>0</iyz>
+            <izz>0.166667</izz>
+          </inertia>
+          <pose>0 0 0 0 -0 0</pose>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>1 1 1</size>
+            </box>
+          </geometry>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+          <max_contacts>10</max_contacts>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>1 1 1</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <name>Gazebo/Grey</name>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <enable_wind>0</enable_wind>
+        <kinematic>0</kinematic>
+      </link>
+    </model>
+    <model name='unit_box_1'>
+      <pose>-1.49275 -1.49365 0.5 0 -0 0</pose>
+      <link name='link'>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.166667</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.166667</iyy>
+            <iyz>0</iyz>
+            <izz>0.166667</izz>
+          </inertia>
+          <pose>0 0 0 0 -0 0</pose>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>1 1 0.999999</size>
+            </box>
+          </geometry>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+          <max_contacts>10</max_contacts>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>1 1 0.999999</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <name>Gazebo/Grey</name>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <enable_wind>0</enable_wind>
+        <kinematic>0</kinematic>
+      </link>
+    </model>
+    <model name='unit_box_2'>
+      <pose>4.48445 -4.47124 0.5 0 -0 0</pose>
+      <link name='link'>
+        <inertial>
+          <mass>1</mass>
+          <inertia>
+            <ixx>0.166667</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>0.166667</iyy>
+            <iyz>0</iyz>
+            <izz>0.166667</izz>
+          </inertia>
+          <pose>0 0 0 0 -0 0</pose>
+        </inertial>
+        <collision name='collision'>
+          <geometry>
+            <box>
+              <size>1 1 1</size>
+            </box>
+          </geometry>
+          <surface>
+            <contact>
+              <ode/>
+            </contact>
+            <bounce/>
+            <friction>
+              <torsional>
+                <ode/>
+              </torsional>
+              <ode/>
+            </friction>
+          </surface>
+          <max_contacts>10</max_contacts>
+        </collision>
+        <visual name='visual'>
+          <geometry>
+            <box>
+              <size>1 1 1</size>
+            </box>
+          </geometry>
+          <material>
+            <script>
+              <name>Gazebo/Grey</name>
+              <uri>file://media/materials/scripts/gazebo.material</uri>
+            </script>
+          </material>
+        </visual>
+        <self_collide>0</self_collide>
+        <enable_wind>0</enable_wind>
+        <kinematic>0</kinematic>
+      </link>
     </model>
   </world>
 </sdf>
