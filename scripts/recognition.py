@@ -97,10 +97,6 @@ class Recognition(object):
         for c in ["orange", "green", "cyan", "blue", "magenta"]:
             all_targets = cv2.bitwise_or(targets[c], all_targets)
 
-        # cv2.imshow("image", all_targets)
-        # cv2.waitKey(0)
-        # cv2.imwrite("./mask.png", all_targets)
-        
         # check the center of the image for the most common color
         img_center_w = int(self.image_width / 2)
         img_start_x = int(img_center_w - ((self.image_width * self.horizontal_field_percent) / 2))
@@ -133,7 +129,7 @@ class Recognition(object):
             if max(totals.values()) == totals[k]:
                 print("Detected:", k)
                 return k
-
+            
     """
     get_nav_line_moment: Get the center position of the blob of the yellow
     navigation line on the screen. Retuns None if there are no yellow pixels.
