@@ -8,7 +8,7 @@ import rospy
 import time
 
 from nav_msgs.msg import OccupancyGrid
-from geometry_msgs.msg import Quaternion, Point, Pose, PoseArray, PoseStamped
+from geometry_msgs.msg import Quaternion, Point, Pose, PoseArray, PoseStamped, Twist
 from sensor_msgs.msg import Image, LaserScan
 from std_msgs.msg import Header, String
 
@@ -40,6 +40,9 @@ class DuckExpress(object):
 
         # Subscribe to the image scan from the robot
         rospy.Subscriber('camera/rgb/image_raw', Image, self.image_received)
+
+        # Initialize a publisher for movement
+        self.movement_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
 
         # Bridge with OpenCV
         self.bridge = cv_bridge.CvBridge()
@@ -75,6 +78,11 @@ class DuckExpress(object):
         """
         self.nav_line_horizon = 1
 
+        """
+        Compass directions as strings. These are the only four accepted values.
+        """
+        self.directions = ['n', 'e', 's', 'w']
+
         rospy.sleep(1)
         self.initialized = True
 
@@ -87,12 +95,10 @@ class DuckExpress(object):
 
     def image_received(self, data):
         if self.initialized:
-            if self.capture_image:
-                print("Capturing image...")
-                self.image_capture = data
-                self.image_height = data.height
-                self.image_width = data.width
-                self.capture_image = False
+            self.image_capture = data
+            self.image_height = data.height
+            self.image_width = data.width
+            self.get_nav_line_moment()
         
     """
     save_next_img: Temporarily subscribes to the camera topic to get and store
@@ -108,8 +114,6 @@ class DuckExpress(object):
     navigation line on the screen. Retuns None if there are no yellow pixels.
     """
     def get_nav_line_moment(self):
-        self.save_next_img()
-
         # Take the ROS message with the image and turn it into a format cv2 can use
         img = self.bridge.imgmsg_to_cv2(self.image_capture, desired_encoding='bgr8')
 
@@ -131,20 +135,49 @@ class DuckExpress(object):
             cx = int(M['m10']/M['m00'])
             cy = int(M['m01']/M['m00'])
             # Uncomment the following code to see the moment in a window!
-            # cv2.circle(img, (cx, cy), 20, (0,0,255), -1)
-            # cv2.imshow("window", img)
-            # cv2.waitKey(3)
+            cv2.circle(img, (cx, cy), 20, (0, 0, 0), -1)
+            cv2.circle(img, (int(self.image_width / 2), int(self.image_height / 2)), 10, (255, 0, 0), -1)
+            cv2.imshow("window", img)
+            cv2.waitKey(3)
+
+            err = (self.image_width / 2) - cx
+            k_p = 1.0 / 100.0
+            twist = Twist()
+            twist.linear.x = 0.2
+            twist.angular.z = k_p * err
+            # self.movement_pub.publish(twist)
 
             return cx, cy
         else:
             return None
-        
-    def run(self):   
-        rospy.spin()
 
+    def direction_to_turn(self, curr_dir: str, new_dir: str):
+        try:
+            curr_idx = self.directions.index(curr_dir)
+        except ValueError:
+            print("Direction \'" + curr_dir + "\' is not valid!")
+
+        try:
+            new_idx = self.directions.index(new_dir)
+        except ValueError:
+            print("Direction \'" + new_dir + "\' is not valid!")
+
+        turn = (new_idx - curr_idx) % 4
+
+        if turn == 0:
+            return "forward"
+        elif turn == 1:
+            return "right"
+        elif turn == 3:
+            return "left"
+        else:
+            raise Exception("This turn shouldn't be valid!")
+        
+    def run(self):
+        rospy.spin()
 
 if __name__ == "__main__":
     node = DuckExpress()
-
+    
     node.run()
 
