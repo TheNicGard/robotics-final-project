@@ -165,7 +165,6 @@ def find_path_a_star(map, start_pos, dest_pos):
                 continue
 
             # Initialize neighbor; since all paths are same length we just assign their weight a value of 1
-            # Note the use of Manhattan rather than Euclidean distance for heuristic
             neighbor.h = heuristic_distance(neighbor, dest_node)
             neighbor.g = current_node.g + 1
             neighbor.f = neighbor.g + neighbor.h
