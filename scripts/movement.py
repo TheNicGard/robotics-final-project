@@ -6,7 +6,7 @@ import numpy as np
 import math
 
 from nav_msgs.msg import OccupancyGrid
-from geometry_msgs.msg import Quaternion, Point, Pose, PoseArray, PoseStamped
+from geometry_msgs.msg import Quaternion, Point, Pose, PoseArray, PoseStamped, PoseWithCovarianceStamped
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Header, String
 
@@ -67,9 +67,16 @@ class DuckExpress(object):
         self.map_topic = "map"
         self.odom_frame = "odom"
         self.scan_topic = "scan"
+        self.amcl_topic = "amcl_pose"
 
         # Node publisher for debugging
         self.node_pub = rospy.Publisher("particle_cloud", PoseArray, queue_size=10)
+
+        # Particle filter
+        rospy.Subscriber(self.amcl_topic, PoseWithCovarianceStamped, self.get_location)
+
+        # Initialize location
+        self.current_location = PoseWithCovarianceStamped()
 
         # Initialize our map
         self.map = OccupancyGrid()
@@ -101,6 +108,9 @@ class DuckExpress(object):
 
     def get_map(self, data):
         self.map = data
+
+    def get_location(self, data):
+        self.current_location = data
 
     def align_occupancy_grid(self):
         """ The purpose of align_occupancy_grid is to map the road map onto the occupancy 
@@ -161,7 +171,6 @@ class DuckExpress(object):
         road_size = 1
         origin_coords = (round((((candidate[0] * self.map.info.resolution) + self.map.info.origin.position.x) - road_size)),
                          round((((candidate[1] * self.map.info.resolution) + self.map.info.origin.position.y) + road_size)))
-        origin_index = candidate[2]
 
         node_size = 1.5
         for i in range(len(self.road_map)):
@@ -260,6 +269,8 @@ class DuckExpress(object):
             np.abs(curr_y - old_y) > self.lin_mvmt_threshold or
             np.abs(curr_yaw - old_yaw) > self.ang_mvmt_threshold):
             print("Current node is:", str(self.current_node))
+            print("Location:", self.current_location)
+            print("")
 
             # Now we must adjust the robot's position - distance is multipled by resolution
             distance_moved = math.sqrt(((curr_x - old_x) ** 2) + ((curr_y - old_y) ** 2))

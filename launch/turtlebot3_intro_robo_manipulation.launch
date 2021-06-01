@@ -34,6 +34,9 @@
   <!-- run controllers -->
   <include file="$(find turtlebot3_manipulation_gazebo)/launch/turtlebot3_manipulation_controller.launch"/>
 
+  <!-- Adaptive Monte Carlo Localization -->
+  <node pkg="amcl" type="amcl" name="amcl" args="-initial_pose_x -6.0 -initial_pose_y 3.0" />   
+
   <!-- Run a transformation between the robot and its laser -->
   <node pkg="tf" type="static_transform_publisher" name="link2_broadcaster" args="-0.1524 0.0 0.1016 0 0 0 /base_footprint /base_scan 100" />
 
