@@ -264,7 +264,7 @@ class DuckExpress(object):
             k_p = 1.0 / 500.0
             twist = Twist()
             twist.linear.x = 0.26
-            # twist.angular.z = k_p * err
+            twist.angular.z = k_p * err
             self.movement_pub.publish(twist)
 
             return cx, cy
@@ -302,13 +302,11 @@ class DuckExpress(object):
     to create a node map. There is one node for each '0' item in the road map.
     """
     def align_occupancy_grid(self):
-        
-        print(self.map.info)
-        
         timer = 5
         decrement = 0
         candidates = []
-        # First, we loop through the OccupancyGrid and stop once we've hit the "bottom left" corner
+
+        # First, we loop through the OccupancyGrid and stop once we've hit the "top left" corner
         # We use a timer and candidates, because the houses are not perfectly aligned in the map
         for i in range(0, self.map.info.width):
             if timer == 0:
@@ -317,27 +315,28 @@ class DuckExpress(object):
                 timer -= decrement
 
             for j in range(0, self.map.info.height):
-                value = self.map.data[i - j*self.map.info.width]
+                value = self.map.data[i + j*self.map.info.width] 
 
-                if (self.map.data[i - (j+1)*self.map.info.width] > 10 and 
-                    self.map.data[i - (j+2)*self.map.info.width] > 10 and 
-                    self.map.data[i - (j+3)*self.map.info.width] > 10 and 
-                    self.map.data[(i+1) - j*self.map.info.width] > 10 and
-                    self.map.data[(i+2) - j*self.map.info.width] > 10 and
-                    self.map.data[(i+3) - j*self.map.info.width] > 10):
+                if (value > 10 and
+                    self.map.data[i + (j-1)*self.map.info.width] > 10 and 
+                    self.map.data[i + (j-2)*self.map.info.width] > 10 and 
+                    self.map.data[i + (j-3)*self.map.info.width] > 10 and 
+                    self.map.data[(i+1) + j*self.map.info.width] > 10 and
+                    self.map.data[(i+2) + j*self.map.info.width] > 10 and
+                    self.map.data[(i+3) + j*self.map.info.width] > 10):
                     decrement = 1 # start timer
-                    candidates.append([i, j, i - j*self.map.info.width])
+                    candidates.append([i, j, i + j*self.map.info.width])
 
         # Get the corner point - largest i, smallest j
         # First get min_j
         max_i = 0
-        min_j = self.map.info.height
+        max_j = 0
         for item in candidates:
-            if item[1] < min_j:
-                min_j = item[1]
+            if item[1] > max_j:
+                max_j = item[1]
 
         # Filter
-        candidates = [item for item in candidates if item[1] == min_j]
+        candidates = [item for item in candidates if item[1] == max_j]
 
         # Now get max_i
         for item in candidates:
@@ -349,53 +348,27 @@ class DuckExpress(object):
 
         # Should only be one item left - our origin/bottom left house
         if len(candidates) != 1:
-            raise Exception("ERROR: align_occupancy grid found", len(candidates), "candidates")
+            print("ERROR: align_occupancy grid found", len(candidates), "candidates")
 
         # Use the road_size to estimate where the road is (since the robot starts on the road and not on the house)
         candidate = candidates[0]
-        road_size = 19
-        res = self.map.info.resolution
-        self.origin_coords = ((candidate[0] - road_size), (candidate[1] - road_size))
-        self.origin_index = ((candidate[0] - road_size) - ((candidate[1] - road_size)*self.map.info.width))
+        road_size = 1
+        origin_coords = (round((((candidate[0] * self.map.info.resolution) + self.map.info.origin.position.x) - road_size)),
+                         round((((candidate[1] * self.map.info.resolution) + self.map.info.origin.position.y) + road_size)))
 
-        iter_index = self.origin_index
-        iter_row = self.origin_coords[0]
-        num_rows = 0
-        node_size = 30
+        node_size = 1.5
+        for i in range(len(self.road_map)):
+            for j in range(len(self.road_map[0])):
+                elmt = self.road_map[i][j]
 
-        road_map_i = 0
-        road_map_j = 0
-        # coords = []
-        # Now create a node for each '0' in the road_map
-        for i in range(self.map.info.width):
-            for j in range(self.map.info.height):
-                value = self.map.data[i - j*self.map.info.width]
+                if elmt == 0:
+                    new_node_name = str((i, j))
+                    real_coords = ((origin_coords[0] + (j * node_size), origin_coords[1] - (i * node_size)))
+                    new_node = Node(new_node_name, 0, real_coords, (i, j))
+                    self.node_map[new_node_name] = new_node
 
-                # We use iter_row and iter_index to keep bounds on where we are translating nodes
-                # We only want to place nodes along roads - not off the grid
-                if ((i == iter_row) and 
-                    (j >= self.origin_coords[1]) and 
-                    (j < (self.origin_coords[1] + node_size*len(self.road_map[0]))) and 
-                    ((((i - j*self.map.info.width) - iter_index) % (node_size*self.map.info.width)) == 0)):
-                    # Create a node if the road map indicates this is an empty spot (x - self.map.info.origin.position.x)/self.map.info.resolution
-                    if self.road_map[road_map_i][road_map_j] == 0:
-                        new_node_name = str((road_map_i, road_map_j))
-                        new_node = Node(new_node_name, i - j*self.map.info.width, (i*res - self.map.info.origin.position.x, j*res - self.map.info.origin.position.y), (road_map_i, road_map_j))
-                        # coords.append(str((i, j)))
-                        self.node_map[new_node_name] = new_node
-                    road_map_j += 1
-
-            # Update counting variables
-            if i == iter_row:
-                num_rows += 1
-                if num_rows == len(self.road_map):
-                    iter_row = 0
-                    iter_index = 0
-                else:
-                    road_map_i += 1
-                    road_map_j = 0
-                    iter_row += node_size
-                    iter_index += node_size
+        print(self.road_map)
+        print("")
 
         # Initialize neighbors
         for key, node in self.node_map.items():
@@ -516,7 +489,7 @@ class DuckExpress(object):
                 distance_moved *= -1
 
             self.current_pos[0] += math.cos(working_yaw) * distance_moved
-            self.current_pos[1] -= math.sin(working_yaw) * distance_moved
+            self.current_pos[1] += math.sin(working_yaw) * distance_moved
 
             # Update the robot's node
             self.estimate_node()

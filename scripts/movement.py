@@ -6,9 +6,11 @@ import numpy as np
 import math
 
 from nav_msgs.msg import OccupancyGrid
-from geometry_msgs.msg import Quaternion, Point, Pose, PoseArray, PoseStamped
+from geometry_msgs.msg import Quaternion, Point, Pose, PoseArray, PoseStamped, PoseWithCovarianceStamped
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Header, String
+
+from std_srvs.srv import Empty, EmptyRequest
 
 import tf
 from tf import TransformListener
@@ -67,9 +69,27 @@ class DuckExpress(object):
         self.map_topic = "map"
         self.odom_frame = "odom"
         self.scan_topic = "scan"
+        self.amcl_topic = "/amcl_pose"
+        self.local_topic = "/global_localization"
+        self.set_map_topic = "/set_map"
 
         # Node publisher for debugging
-        self.node_pub = rospy.Publisher("particle_cloud", PoseArray, queue_size=10)
+        rospy.Subscriber("/particlecloud", PoseArray, self.get_particles)
+
+        # Particle filter
+        rospy.Subscriber(self.amcl_topic, PoseWithCovarianceStamped, self.get_location)
+
+        # Initialize location
+        self.current_location = PoseWithCovarianceStamped()
+        # rospy.wait_for_service(self.local_topic)
+        # self.global_localization = rospy.ServiceProxy(self.local_topic, Empty)
+        # localization_empty_msg = EmptyRequest()
+        # self.global_localization(localization_empty_msg)
+
+        # self.set_map = rospy.ServiceProxy(self.set_map_topic, Empty)
+        # set_map_empty_msg = EmptyRequest()
+        # self.set_map(set_map_empty_msg)
+
 
         # Initialize our map
         self.map = OccupancyGrid()
@@ -93,8 +113,6 @@ class DuckExpress(object):
         # Align OccupancyGrid to map
         self.road_map = np.loadtxt(PATH_PREFIX + MAP_NAME + ".txt")
         rospy.sleep(1)
-        self.origin_index = None
-        self.origin_coords = None
         self.node_map = {}
         self.current_node = None
         self.align_occupancy_grid()
@@ -103,6 +121,18 @@ class DuckExpress(object):
 
     def get_map(self, data):
         self.map = data
+
+    def get_location(self, data):
+        if not self.initialized:
+            return
+
+        self.current_location = data
+
+        self.current_pos[0] = self.current_location.pose.pose.position.x
+        self.current_pos[1] = self.current_location.pose.pose.position.y
+
+    def get_particles(self, data):
+        return
 
     def align_occupancy_grid(self):
         """ The purpose of align_occupancy_grid is to map the road map onto the occupancy 
@@ -113,7 +143,8 @@ class DuckExpress(object):
         timer = 5
         decrement = 0
         candidates = []
-        # First, we loop through the OccupancyGrid and stop once we've hit the "bottom left" corner
+
+        # First, we loop through the OccupancyGrid and stop once we've hit the "top left" corner
         # We use a timer and candidates, because the houses are not perfectly aligned in the map
         for i in range(0, self.map.info.width):
             if timer == 0:
@@ -122,27 +153,28 @@ class DuckExpress(object):
                 timer -= decrement
 
             for j in range(0, self.map.info.height):
-                value = self.map.data[i - j*self.map.info.width]
+                value = self.map.data[i + j*self.map.info.width] 
 
-                if (self.map.data[i - (j+1)*self.map.info.width] > 10 and 
-                    self.map.data[i - (j+2)*self.map.info.width] > 10 and 
-                    self.map.data[i - (j+3)*self.map.info.width] > 10 and 
-                    self.map.data[(i+1) - j*self.map.info.width] > 10 and
-                    self.map.data[(i+2) - j*self.map.info.width] > 10 and
-                    self.map.data[(i+3) - j*self.map.info.width] > 10):
+                if (value > 10 and
+                    self.map.data[i + (j-1)*self.map.info.width] > 10 and 
+                    self.map.data[i + (j-2)*self.map.info.width] > 10 and 
+                    self.map.data[i + (j-3)*self.map.info.width] > 10 and 
+                    self.map.data[(i+1) + j*self.map.info.width] > 10 and
+                    self.map.data[(i+2) + j*self.map.info.width] > 10 and
+                    self.map.data[(i+3) + j*self.map.info.width] > 10):
                     decrement = 1 # start timer
-                    candidates.append([i, j, i - j*self.map.info.width])
+                    candidates.append([i, j, i + j*self.map.info.width])
 
         # Get the corner point - largest i, smallest j
         # First get min_j
         max_i = 0
-        min_j = self.map.info.height
+        max_j = 0
         for item in candidates:
-            if item[1] < min_j:
-                min_j = item[1]
+            if item[1] > max_j:
+                max_j = item[1]
 
         # Filter
-        candidates = [item for item in candidates if item[1] == min_j]
+        candidates = [item for item in candidates if item[1] == max_j]
 
         # Now get max_i
         for item in candidates:
@@ -158,52 +190,20 @@ class DuckExpress(object):
 
         # Use the road_size to estimate where the road is (since the robot starts on the road and not on the house)
         candidate = candidates[0]
-        road_size = 19
-        self.origin_coords = (candidate[0] - road_size, candidate[1] - road_size)
-        self.origin_index = ((candidate[0] - road_size) - ((candidate[1] - road_size)*self.map.info.width))
+        road_size = 1
+        origin_coords = (round((((candidate[0] * self.map.info.resolution) + self.map.info.origin.position.x) - road_size)),
+                         round((((candidate[1] * self.map.info.resolution) + self.map.info.origin.position.y) + road_size)))
 
-        print("INDEX:", self.origin_index)
-        print("COORDS:", self.origin_coords)
-        print("RANGE:", self.origin_coords[1], "-", self.origin_coords[1] + road_size*len(self.road_map[0]))
-        print("")
-        iter_index = self.origin_index
-        iter_row = self.origin_coords[0]
-        num_rows = 0
-        node_size = 30
+        node_size = 1.5
+        for i in range(len(self.road_map)):
+            for j in range(len(self.road_map[0])):
+                elmt = self.road_map[i][j]
 
-        road_map_i = 0
-        road_map_j = 0
-        coords = []
-        # Now create a node for each '0' in the road_map
-        for i in range(self.map.info.width):
-            for j in range(self.map.info.height):
-                value = self.map.data[i - j*self.map.info.width]
-
-                # We use iter_row and iter_index to keep bounds on where we are translating nodes
-                # We only want to place nodes along roads - not off the grid
-                if ((i == iter_row) and 
-                    (j >= self.origin_coords[1]) and 
-                    (j < (self.origin_coords[1] + node_size*len(self.road_map[0]))) and 
-                    ((((i - j*self.map.info.width) - iter_index) % (node_size*self.map.info.width)) == 0)):
-                    # Create a node if the road map indicates this is an empty spot
-                    if self.road_map[road_map_i][road_map_j] == 0:
-                        new_node_name = str((road_map_i, road_map_j))
-                        new_node = Node(new_node_name, i - j*self.map.info.width, (i, j), (road_map_i, road_map_j))
-                        coords.append(str((i, j)))
-                        self.node_map[new_node_name] = new_node
-                    road_map_j += 1
-
-            # Update counting variables
-            if i == iter_row:
-                num_rows += 1
-                if num_rows == len(self.road_map):
-                    iter_row = 0
-                    iter_index = 0
-                else:
-                    road_map_i += 1
-                    road_map_j = 0
-                    iter_row += node_size
-                    iter_index += node_size
+                if elmt == 0:
+                    new_node_name = str((i, j))
+                    real_coords = ((origin_coords[0] + (j * node_size), origin_coords[1] - (i * node_size)))
+                    new_node = Node(new_node_name, 0, real_coords, (i, j))
+                    self.node_map[new_node_name] = new_node
 
         print(self.road_map)
         print("")
@@ -245,16 +245,19 @@ class DuckExpress(object):
             and estimates which node it is closest to. """
         # wait until initialization is complete
         if not(self.initialized):
+            print("not init")
             return
 
         # we need to be able to transfrom the laser frame to the base frame
         if not(self.tf_listener.canTransform(self.base_frame, data.header.frame_id, data.header.stamp)):
+            print("not transform 1")
             return
 
         # wait for a little bit for the transform to become avaliable (in case the scan arrives
         # a little bit before the odom to base_footprint transform was updated) 
         self.tf_listener.waitForTransform(self.base_frame, self.odom_frame, data.header.stamp, rospy.Duration(0.5))
         if not(self.tf_listener.canTransform(self.base_frame, data.header.frame_id, data.header.stamp)):
+            print("not transform 2")
             return
 
         # calculate the pose of the laser distance sensor 
@@ -291,9 +294,11 @@ class DuckExpress(object):
             np.abs(curr_y - old_y) > self.lin_mvmt_threshold or
             np.abs(curr_yaw - old_yaw) > self.ang_mvmt_threshold):
             print("Current node is:", str(self.current_node))
+            print("Location:", self.current_location)
+            print("")
 
             # Now we must adjust the robot's position - distance is multipled by resolution
-            distance_moved = math.sqrt(((curr_x - old_x) ** 2) + ((curr_y - old_y) ** 2)) * (1/self.map.info.resolution)
+            distance_moved = math.sqrt(((curr_x - old_x) ** 2) + ((curr_y - old_y) ** 2))
 
             curr_yaw = get_yaw_from_pose(self.odom_pose.pose)
             old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
@@ -328,8 +333,8 @@ class DuckExpress(object):
             if moving_backwards:
                 distance_moved *= -1
 
-            self.current_pos[0] += math.cos(working_yaw) * distance_moved
-            self.current_pos[1] -= math.sin(working_yaw) * distance_moved
+            # self.current_pos[0] += math.cos(working_yaw) * distance_moved
+            # self.current_pos[1] += math.sin(working_yaw) * distance_moved
 
             # Now we see who the closest node is and update current node if necessary
             nodes = [self.current_node, self.current_node.n, self.current_node.s, self.current_node.e, self.current_node.w]
