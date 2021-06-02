@@ -10,6 +10,8 @@ from geometry_msgs.msg import Quaternion, Point, Pose, PoseArray, PoseStamped, P
 from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Header, String
 
+from std_srvs.srv import Empty, EmptyRequest
+
 import tf
 from tf import TransformListener
 from tf import TransformBroadcaster
@@ -67,16 +69,21 @@ class DuckExpress(object):
         self.map_topic = "map"
         self.odom_frame = "odom"
         self.scan_topic = "scan"
-        self.amcl_topic = "amcl_pose"
+        self.amcl_topic = "/amcl_pose"
+        self.local_topic = "/global_localization"
 
         # Node publisher for debugging
-        self.node_pub = rospy.Publisher("particle_cloud", PoseArray, queue_size=10)
+        rospy.Subscriber("particle_cloud", PoseArray, self.get_particles)
 
         # Particle filter
         rospy.Subscriber(self.amcl_topic, PoseWithCovarianceStamped, self.get_location)
 
         # Initialize location
         self.current_location = PoseWithCovarianceStamped()
+        # rospy.wait_for_service(self.local_topic)
+        self.global_localization = rospy.ServiceProxy(self.local_topic, Empty)
+        empty_msg = EmptyRequest()
+        self.global_localization(empty_msg)
 
         # Initialize our map
         self.map = OccupancyGrid()
@@ -111,6 +118,11 @@ class DuckExpress(object):
 
     def get_location(self, data):
         self.current_location = data
+
+    def get_particles(self, data):
+        print("")
+        print("Pariticles:", data)
+        print("")
 
     def align_occupancy_grid(self):
         """ The purpose of align_occupancy_grid is to map the road map onto the occupancy 
