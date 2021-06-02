@@ -3,17 +3,18 @@
 import cv2
 import cv_bridge
 import math
+import moveit_commander
 import numpy as np
+import os
 import rospy
 import time
-import os
 
-from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import Quaternion, Point, Pose, PoseArray, PoseStamped, Twist
+from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import Image, LaserScan
 from std_msgs.msg import Header, String
 
-import tf
+# import tf
 from tf import TransformListener
 from tf import TransformBroadcaster
 from tf.transformations import quaternion_from_euler, euler_from_quaternion
@@ -171,6 +172,25 @@ class DuckExpress(object):
         self.current_path = find_path_a_star(np.flip(self.road_map, 0), self.current_node.map_coords, (6, 4))
         print("current_path:", self.current_path)
 
+        # State for grabbing dumbbell
+        self.turning_towards_dumbbell = True
+        self.driving_towards_dumbbell = True
+        self.picking_up_dumbbell = False
+
+        # the farthest and closest distance a robot can be to pick up an object
+        self.db_prox_high = 0.23
+        self.db_prox_low = 0.19
+
+        # the interface to the group of joints making up the turtlebot3
+        # openmanipulator arm
+        self.move_group_arm = moveit_commander.MoveGroupCommander("arm")
+        
+        # the interface to the group of joints making up the turtlebot3
+        # openmanipulator gripper
+        self.move_group_gripper = moveit_commander.MoveGroupCommander("gripper")
+
+        self.linear = 0
+
         self.initialized = True
 
     def get_map(self, data):
@@ -182,32 +202,41 @@ class DuckExpress(object):
 
     def image_received(self, data):
         if self.initialized:
-            self.image_capture = data
+            # Take the ROS message with the image and turn it into a format cv2 can use
+            self.image_capture = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
+            
             self.image_height = data.height
             self.image_width = data.width
-            self.get_nav_line_moment()
+            # self.get_nav_line_moment()
+            self.grab_dumbbell("green")
 
     def robot_scan_received(self, data):
         if self.initialized:
             self.update_robot_pos(data)
-        
-    """
-    save_next_img: Temporarily subscribes to the camera topic to get and store
-    the next available image.
-    """
-    def save_next_img(self):
-        self.capture_image = True
-        while self.capture_image:
-            time.sleep(1)
+
+            if self.driving_towards_dumbbell:
+                front_avg = data.ranges[0]
+
+                if not self.can_see_dumbbell:
+                    self.linear = 0
+                elif front_avg > self.db_prox_high:
+                    print("Forward! (" + str(front_avg) + " / " + str(self.db_prox_high) + ")")
+                    self.linear = 0.1
+                elif front_avg < self.db_prox_low:
+                    self.linear = -0.1
+                    print("Backward! (" + str(front_avg) + " / " + str(self.db_prox_low) + ")")
+                else:
+                    self.linear = 0
+                    self.driving_towards_dumbbell = False
+                    self.move_to_grabbed()
         
     """
     get_nav_line_moment: Get the center position of the blob of the yellow
     navigation line on the screen. Retuns None if there are no yellow pixels.
     """
     def get_nav_line_moment(self):
-        # Take the ROS message with the image and turn it into a format cv2 can use
-        img = self.bridge.imgmsg_to_cv2(self.image_capture, desired_encoding='bgr8')
-
+        img = self.image_capture
+        
         # Get the horizon mask
         # Cite: https://www.pyimagesearch.com/2021/01/19/image-masking-with-opencv/
         horizon_mask = np.zeros(img.shape[:2], dtype="uint8")
@@ -226,10 +255,10 @@ class DuckExpress(object):
             cx = int(M['m10']/M['m00'])
             cy = int(M['m01']/M['m00'])
             # Uncomment the following code to see the moment in a window!
-            cv2.circle(img, (cx, cy), 20, (0, 0, 0), -1)
-            cv2.circle(img, (int(self.image_width / 2), int(self.image_height / 2)), 10, (255, 0, 0), -1)
-            cv2.imshow("window", img)
-            cv2.waitKey(3)
+            # cv2.circle(img, (cx, cy), 20, (0, 0, 0), -1)
+            # cv2.circle(img, (int(self.image_width / 2), int(self.image_height / 2)), 10, (255, 0, 0), -1)
+            # cv2.imshow("window", img)
+            # cv2.waitKey(3)
 
             err = (self.image_width / 2) - cx
             k_p = 1.0 / 500.0
@@ -533,14 +562,104 @@ class DuckExpress(object):
         threshold = 0.2
         return
 
+    """
+    grab_dumbbell: finds the moment of a dumbbell determined by the color
+    string. Assumes that the dumbbell is visible (i.e. it's not in front of a
+    block of matching color).
+    """
+    def grab_dumbbell(self, color):
+        ang_vel = 0
+        img = self.image_capture
 
-    
+        # color_recog_fov is the percentage of the image that is used to find
+        # the colored object
+        self.color_recog_fov = 0.5
+
+        # Reduce the horizontal FOV (to avoid looking at adjacent objects of
+        # the same color
+        w, h = self.image_width, self.image_height
+        cv2.rectangle(img, (-w, 0), (int(w * self.color_recog_fov) // 2, h), (0, 0, 0), -1)
+        cv2.rectangle(img, (w - (int(w * self.color_recog_fov) // 2), 0), (2 * w, h), 0, -1)
+
+        # Get the colored pixels in the image
+        color_mask = cv2.inRange(img, self.color_bounds[color][0], self.color_bounds[color][1])        
+        color_target = cv2.bitwise_and(img, img, mask=color_mask)
+
+        # Get the moment of the dumbbell
+        gray_img = cv2.cvtColor(color_target, cv2.COLOR_BGR2GRAY)
+
+        M = cv2.moments(gray_img)
+        if M['m00'] > 0:
+            self.can_see_dumbbell = True
+            
+            # Center of the colored pixels in the image (the moment)
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+
+            print("midpoint:", str(w // 2), "cx:", cx)
+            # Uncomment the following code to see the moment in a window!
+            cv2.line(color_target, (cx, 0), (cx, self.image_height), (128, 128, 128), 3)
+            cv2.putText(color_target, "(" + str(cx) + ", " + str(cy) + ")", (0, 0), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (128, 128, 128))
+            cv2.imshow("window", color_target)
+            cv2.waitKey(3)
+
+            self.last_cx = cx
+            err = (w / 2) - cx
+            k_p = 1.0 / 500.0
+            ang_vel = err * k_p
+        else:
+            self.can_see_dumbbell = False
+
+        if self.turning_towards_dumbbell:
+            twist = Twist()
+            if self.last_cx > (w / 2) + 5:
+                twist.angular.z = ang_vel
+                print("Turning right! (" + str(twist.angular.z) + ")")
+            elif self.last_cx < (w / 2) - 5:
+                twist.angular.z = ang_vel * -1
+                print("Turning left! (" + str(twist.angular.z) + ")")
+
+            twist.linear.x = self.linear
+            self.movement_pub.publish(twist)
+
+            
+    """""""""""""""""""""""""""""""""
+          ROBOT ARM FUNCTIONS
+    """""""""""""""""""""""""""""""""
+    def move_arm(self, goal):
+        self.move_group_arm.go(goal, wait=True)
+        self.move_group_arm.stop()
+        
+    def move_gripper(self, goal):
+        self.move_group_gripper.go(goal, wait=True)
+        self.move_group_gripper.stop()
+                
+    def move_to_ready(self):
+        self.move_arm([0.0, 0.55, 0.3, -0.85])
+        self.move_gripper([0.018, 0.018])
+
+        print("Arm ready to grab!")
+        rospy.sleep(2)
+
+    def move_to_grabbed(self):
+        self.move_gripper([0.008, -0.008])        
+        self.move_arm([0, -1.18, 0.225, 0.035])
+
+        print("Dumbbell is grabbed!")
+        rospy.sleep(2)
+
+    def move_to_release(self):
+        self.move_arm([0, -0.35, -0.15, 0.5])
+        self.move_gripper([0.01, 0.01])
+
+        print("Dumbbell has been released!")
+        rospy.sleep(2)
         
     def run(self):
+        self.move_to_ready()
         rospy.spin()
 
 if __name__ == "__main__":
     node = DuckExpress()
-    
     node.run()
 
