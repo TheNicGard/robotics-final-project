@@ -74,7 +74,7 @@ class DuckExpress(object):
         self.set_map_topic = "/set_map"
 
         # Node publisher for debugging
-        # rospy.Subscriber("particle_cloud", PoseArray, self.get_particles)
+        rospy.Subscriber("/particlecloud", PoseArray, self.get_particles)
 
         # Particle filter
         rospy.Subscriber(self.amcl_topic, PoseWithCovarianceStamped, self.get_location)
@@ -123,12 +123,16 @@ class DuckExpress(object):
         self.map = data
 
     def get_location(self, data):
+        if not self.initialized:
+            return
+
         self.current_location = data
 
+        self.current_pos[0] = self.current_location.pose.pose.position.x
+        self.current_pos[1] = self.current_location.pose.pose.position.y
+
     def get_particles(self, data):
-        print("")
-        print("Pariticles:", data)
-        print("")
+        return
 
     def align_occupancy_grid(self):
         """ The purpose of align_occupancy_grid is to map the road map onto the occupancy 
@@ -241,16 +245,19 @@ class DuckExpress(object):
             and estimates which node it is closest to. """
         # wait until initialization is complete
         if not(self.initialized):
+            print("not init")
             return
 
         # we need to be able to transfrom the laser frame to the base frame
         if not(self.tf_listener.canTransform(self.base_frame, data.header.frame_id, data.header.stamp)):
+            print("not transform 1")
             return
 
         # wait for a little bit for the transform to become avaliable (in case the scan arrives
         # a little bit before the odom to base_footprint transform was updated) 
         self.tf_listener.waitForTransform(self.base_frame, self.odom_frame, data.header.stamp, rospy.Duration(0.5))
         if not(self.tf_listener.canTransform(self.base_frame, data.header.frame_id, data.header.stamp)):
+            print("not transform 2")
             return
 
         # calculate the pose of the laser distance sensor 
@@ -326,8 +333,8 @@ class DuckExpress(object):
             if moving_backwards:
                 distance_moved *= -1
 
-            self.current_pos[0] += math.cos(working_yaw) * distance_moved
-            self.current_pos[1] += math.sin(working_yaw) * distance_moved
+            # self.current_pos[0] += math.cos(working_yaw) * distance_moved
+            # self.current_pos[1] += math.sin(working_yaw) * distance_moved
 
             # Now we see who the closest node is and update current node if necessary
             nodes = [self.current_node, self.current_node.n, self.current_node.s, self.current_node.e, self.current_node.w]
