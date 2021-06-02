@@ -74,7 +74,7 @@ class DuckExpress(object):
         self.set_map_topic = "/set_map"
 
         # Node publisher for debugging
-        rospy.Subscriber("particle_cloud", PoseArray, self.get_particles)
+        # rospy.Subscriber("particle_cloud", PoseArray, self.get_particles)
 
         # Particle filter
         rospy.Subscriber(self.amcl_topic, PoseWithCovarianceStamped, self.get_location)
@@ -82,13 +82,13 @@ class DuckExpress(object):
         # Initialize location
         self.current_location = PoseWithCovarianceStamped()
         # rospy.wait_for_service(self.local_topic)
-        self.global_localization = rospy.ServiceProxy(self.local_topic, Empty)
-        localization_empty_msg = EmptyRequest()
-        self.global_localization(localization_empty_msg)
+        # self.global_localization = rospy.ServiceProxy(self.local_topic, Empty)
+        # localization_empty_msg = EmptyRequest()
+        # self.global_localization(localization_empty_msg)
 
-        self.set_map = rospy.ServiceProxy(self.set_map_topic, Empty)
-        set_map_empty_msg = EmptyRequest()
-        self.set_map(set_map_empty_msg)
+        # self.set_map = rospy.ServiceProxy(self.set_map_topic, Empty)
+        # set_map_empty_msg = EmptyRequest()
+        # self.set_map(set_map_empty_msg)
 
 
         # Initialize our map

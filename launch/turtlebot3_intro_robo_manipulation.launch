@@ -3,6 +3,9 @@
   <arg name="gui" default="true"/>
   <arg name="paused" default="true"/>
   <arg name="use_sim_time" default="true"/>
+  <arg name="open_rviz" default="true"/>
+  <arg name="map" default="$(find robotics-final-project)/maps/neighborhood_simple.yaml" />
+
 
   <rosparam file="$(find turtlebot3_manipulation_gazebo)/config/gazebo_controller.yaml" command="load"/>
 
@@ -31,14 +34,17 @@
   <!-- run controllers -->
   <include file="$(find turtlebot3_manipulation_gazebo)/launch/turtlebot3_manipulation_controller.launch"/>
 
-  <!-- Adaptive Monte Carlo Localization -->
-  <node pkg="amcl" type="amcl" name="amcl" args="-initial_pose_x -6.0 -initial_pose_y 3.0 -laser_min_range 0.0 -laser_max_range 3.5 -use_map_topic false" />
-
   <!-- Map server -->
-  <node pkg="map_server" name="map_server" type="map_server" args="$(find robotics-final-project)/maps/neighborhood_simple.yaml"/>
+  <node pkg="map_server" name="map_server" type="map_server" args="$(find robotics-final-project)/maps/neighborhood_simple.yaml" />
+
+  <!-- Adaptive Monte Carlo Localization -->
+  <node pkg="amcl" type="amcl" name="amcl" output="screen">
+    <param name="initial_pose_x" value="-6.0" />
+    <param name="initial_pose_y" value="3.0" />
+  </node>
 
   <!-- Run a transformation between the robot and its laser -->
-  <node pkg="tf" type="static_transform_publisher" name="link2_broadcaster" args="-0.1524 0.0 0.1016 0 0 0 /base_footprint /base_scan 100" />
+  <node pkg="tf" type="static_transform_publisher" name="link2_broadcaster" args="-0.1524 0.0 0.1016 0 0 0 /base_link /scan 100" />
 
   <!-- Run a transformation between the robot and its camera -->
   <node pkg="tf" type="static_transform_publisher" name="link3_broadcaster" args="0.0 0.0 0.1016 0 0 0 /base_footprint /camera_rgb_optical_frame 100" />
