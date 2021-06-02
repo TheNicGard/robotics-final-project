@@ -71,6 +71,7 @@ class DuckExpress(object):
         self.scan_topic = "scan"
         self.amcl_topic = "/amcl_pose"
         self.local_topic = "/global_localization"
+        self.set_map_topic = "/set_map"
 
         # Node publisher for debugging
         rospy.Subscriber("particle_cloud", PoseArray, self.get_particles)
@@ -82,8 +83,13 @@ class DuckExpress(object):
         self.current_location = PoseWithCovarianceStamped()
         # rospy.wait_for_service(self.local_topic)
         self.global_localization = rospy.ServiceProxy(self.local_topic, Empty)
-        empty_msg = EmptyRequest()
-        self.global_localization(empty_msg)
+        localization_empty_msg = EmptyRequest()
+        self.global_localization(localization_empty_msg)
+
+        self.set_map = rospy.ServiceProxy(self.set_map_topic, Empty)
+        set_map_empty_msg = EmptyRequest()
+        self.set_map(set_map_empty_msg)
+
 
         # Initialize our map
         self.map = OccupancyGrid()
