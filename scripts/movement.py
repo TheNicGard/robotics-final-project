@@ -241,127 +241,35 @@ class DuckExpress(object):
         print("Current node is:", repr(self.current_node))
 
     def robot_scan_received(self, data):
-        """ Mostly taken from particle filter - just updates the robot's current position
-            and estimates which node it is closest to. """
-        # wait until initialization is complete
-        if not(self.initialized):
-            print("not init")
+        if not self.initialized:
             return
 
-        # we need to be able to transfrom the laser frame to the base frame
-        if not(self.tf_listener.canTransform(self.base_frame, data.header.frame_id, data.header.stamp)):
-            print("not transform 1")
-            return
+        print("Current node is:", str(self.current_node))
+        print("Location:", self.current_location)
+        print("")
+        
+        # Now we see who the closest node is and update current node if necessary
+        nodes = [self.current_node, self.current_node.n, self.current_node.s, self.current_node.e, self.current_node.w]
+        
+        new_node = None
+        min_distance = 2 ** 32
+        for node in nodes:
+            # Skip if no neighbor
+            if not node:
+                continue
 
-        # wait for a little bit for the transform to become avaliable (in case the scan arrives
-        # a little bit before the odom to base_footprint transform was updated) 
-        self.tf_listener.waitForTransform(self.base_frame, self.odom_frame, data.header.stamp, rospy.Duration(0.5))
-        if not(self.tf_listener.canTransform(self.base_frame, data.header.frame_id, data.header.stamp)):
-            print("not transform 2")
-            return
+            # Otherwise, pick closest node - usually will be self.current_node
+            print("comparing", node.map_coords, node.real_coords, "to", self.current_pos)
+            dist = manhattan_distance(node.real_coords, self.current_pos)
+            if dist < min_distance:
+                min_distance = dist
+                new_node = node
 
-        # calculate the pose of the laser distance sensor 
-        p = PoseStamped(
-            header=Header(stamp=rospy.Time(0),
-                          frame_id=data.header.frame_id))
-
-        self.laser_pose = self.tf_listener.transformPose(self.base_frame, p)
-
-        # determine where the robot thinks it is based on its odometry
-        p = PoseStamped(
-            header=Header(stamp=data.header.stamp,
-                          frame_id=self.base_frame),
-            pose=Pose())
-
-        self.odom_pose = self.tf_listener.transformPose(self.odom_frame, p)
-
-        # we need to be able to compare the current odom pose to the prior odom pose
-        # if there isn't a prior odom pose, set the odom_pose variable to the current pose
-        if not self.odom_pose_last_motion_update:
-            self.odom_pose_last_motion_update = self.odom_pose
-            return
-
-        # check to see if we've moved far enough to perform an update
-
-        curr_x = self.odom_pose.pose.position.x
-        old_x = self.odom_pose_last_motion_update.pose.position.x
-        curr_y = self.odom_pose.pose.position.y
-        old_y = self.odom_pose_last_motion_update.pose.position.y
-        curr_yaw = get_yaw_from_pose(self.odom_pose.pose)
-        old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
-
-        if (np.abs(curr_x - old_x) > self.lin_mvmt_threshold or 
-            np.abs(curr_y - old_y) > self.lin_mvmt_threshold or
-            np.abs(curr_yaw - old_yaw) > self.ang_mvmt_threshold):
-            print("Current node is:", str(self.current_node))
-            print("Location:", self.current_location)
-            print("")
-
-            # Now we must adjust the robot's position - distance is multipled by resolution
-            distance_moved = math.sqrt(((curr_x - old_x) ** 2) + ((curr_y - old_y) ** 2))
-
-            curr_yaw = get_yaw_from_pose(self.odom_pose.pose)
-            old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
-
-            #The following code is used to determine whether the robot is moving in reverse since distance is always positive
-            x_pos = False
-            if curr_x - old_x > 0:
-                x_pos = True
-
-            y_pos = False
-            if curr_y - old_y > 0:
-                y_pos = True
-
-
-            moving_backwards = False
-            working_yaw = curr_yaw % (2 * np.pi)
-
-            #use the unit circle to determine if based on the sign of the x and y if we are moving forward or backwards
-            #ex. if robot is facing between pi/2 and pi, it is moving backwards if x is positive or y is negative
-            if working_yaw <= np.pi / 2:
-                moving_backwards = not x_pos or not y_pos
-            elif working_yaw <= np.pi:
-                moving_backwards = x_pos or not y_pos
-            elif working_yaw <= (3 * np.pi) / 2:
-                moving_backwards = x_pos or y_pos
-            elif working_yaw <= 2 * np.pi:
-                moving_backwards = not x_pos or y_pos
-            else:
-                print("ERROR: yaw is outside of range")
-                print("original yaw:", curr_yaw, "working_yaw:", working_yaw, end="\n\n")
-            
-            if moving_backwards:
-                distance_moved *= -1
-
-            # self.current_pos[0] += math.cos(working_yaw) * distance_moved
-            # self.current_pos[1] += math.sin(working_yaw) * distance_moved
-
-            # Now we see who the closest node is and update current node if necessary
-            nodes = [self.current_node, self.current_node.n, self.current_node.s, self.current_node.e, self.current_node.w]
-            
-            new_node = None
-            min_distance = 2 ** 32
-            for node in nodes:
-                # Skip if no neighbor
-                if not node:
-                    continue
-
-                # Otherwise, pick closest node - usually will be self.current_node
-                print("comparing", node.map_coords, node.real_coords, "to", self.current_pos)
-                dist = manhattan_distance(node.real_coords, self.current_pos)
-                if dist < min_distance:
-                    min_distance = dist
-                    new_node = node
-
-            # Sanity check
-            if new_node:
-                self.current_node = new_node
-            else:
-                print("ERROR: robot_scan_received; new_node is null")
-
-            # Finally, update the odom info
-            self.odom_pose_last_motion_update = self.odom_pose
-
+        # Sanity check
+        if new_node:
+            self.current_node = new_node
+        else:
+            print("ERROR: robot_scan_received; new_node is null")
 
     def run(self):
         rospy.spin()
