@@ -22,9 +22,15 @@ from pathing import find_path_a_star
 
 PATH_PREFIX = os.path.dirname(__file__) + "/robot_maps/"
 MAP_NAME = "neighborhood_simple"
+DISTANCE_ALGORITHM = "euclidean"
 
-def manhattan_distance(x_node, y_node):
-    return abs(x_node[0] - y_node[0]) + abs(x_node[1] - y_node[1])
+def distance(x_node, y_node):
+    if DISTANCE_ALGORITHM == "euclidean":
+        return math.sqrt(((x_node[0] - y_node[0]) ** 2) + ((x_node[1] - y_node[1]) ** 2))
+    elif DISTANCE_ALGORITHM == "manhattan":
+        return abs(x_node[0] - y_node[0]) + abs(x_node[1] - y_node[1])
+    else:
+        raise Exception("distance: unkown algorithm:", DISTANCE_ALGORITHM)
 
 def get_yaw_from_pose(p):
     """ A helper function that takes in a Pose object (geometry_msgs) and returns yaw"""
@@ -155,7 +161,7 @@ class DuckExpress(object):
         self.current_node = None
         self.align_occupancy_grid()
 
-        self.path = find_path_a_star(self.road_map, self.current_node.map_coords, self.node_map['(4, 6)'].map_coords)
+        self.path = find_path_a_star(self.road_map, self.current_node.map_coords, self.node_map['(8, 8)'].map_coords)
         print("PATH:", self.path)
         self.current_dir = "e"
 
@@ -308,7 +314,7 @@ class DuckExpress(object):
         nodes = [self.current_node.n, self.current_node.s, self.current_node.e, self.current_node.w]
         
         new_node = None
-        min_distance = 0.25
+        min_distance = 0.3
         old_node = self.current_node
         for node in nodes:
             # Skip if no neighbor
@@ -317,8 +323,9 @@ class DuckExpress(object):
 
             # Otherwise, pick closest node - usually will be self.current_node
             # print("comparing", node.map_coords, node.real_coords, "to", self.current_pos)
-            dist = manhattan_distance(node.real_coords, self.current_pos)
-            if dist < min_distance:
+            dist = distance(node.real_coords, self.current_pos)
+            print(self.current_pos, "vs", node.real_coords, "=", dist)
+            if dist <= min_distance:
                 min_distance = dist
                 new_node = node
 
@@ -377,7 +384,7 @@ class DuckExpress(object):
                 return
 
             self.path.pop(0)
-            print("Crossed a node:", self.current_node)
+            print("Current node:", self.current_node)
             print("Path:", self.path)
             print("Next node:", self.path[0])
             print("")
@@ -432,7 +439,7 @@ class DuckExpress(object):
 
             print("Publishing")
             self.movement_pub.publish(self.turn_msg)
-            rospy.sleep(5)
+            rospy.sleep(4)
     
             self.turn_msg.linear.x = 0
             self.turn_msg.angular.z = 0
@@ -476,7 +483,9 @@ class DuckExpress(object):
             # twist = Twist()
             self.road_msg.linear.x = 0.26
             self.road_msg.angular.z = k_p * err
-            self.movement_pub.publish(self.road_msg)
+            print("Updating road")
+            if not self.ignore_road:
+                self.movement_pub.publish(self.road_msg)
 
             return cx, cy
         else:
