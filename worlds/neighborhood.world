@@ -714,7 +714,7 @@
     <model name='C4'>
       <link name='link_4'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -817,7 +817,7 @@
     <model name='D1'>
       <link name='link_4'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -920,7 +920,7 @@
     <model name='D2'>
       <link name='link_4'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -1023,7 +1023,7 @@
     <model name='C3'>
       <link name='link_4'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -2662,7 +2662,7 @@
     <model name='Cyan_Dumbbell'>
       <link name='link_0'>
         <inertial>
-          <mass>1</mass>
+          <mass>0.02</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -2767,7 +2767,7 @@
     <model name='Green_Dumbbell_0'>
       <link name='link_0'>
         <inertial>
-          <mass>1</mass>
+          <mass>0.02</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -2872,7 +2872,7 @@
     <model name='Red_Dumbbell'>
       <link name='link_0'>
         <inertial>
-          <mass>1</mass>
+          <mass>0.02</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -2977,7 +2977,7 @@
     <model name='Blue_Dumbbell'>
       <link name='link_0'>
         <inertial>
-          <mass>1</mass>
+          <mass>0.02</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -3082,7 +3082,7 @@
     <model name='Magenta_Dumbbell'>
       <link name='link_0'>
         <inertial>
-          <mass>1</mass>
+          <mass>0.02</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -3187,7 +3187,7 @@
     <model name='Orange_Dumbbell'>
       <link name='link_0'>
         <inertial>
-          <mass>1</mass>
+          <mass>0.02</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -3292,7 +3292,7 @@
     <model name='C1_0'>
       <link name='link_4'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -3395,7 +3395,7 @@
     <model name='B2_0'>
       <link name='link_4'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -3498,7 +3498,7 @@
     <model name='A1'>
       <link name='link_4'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -3601,7 +3601,7 @@
     <model name='A2'>
       <link name='link_4'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -3704,7 +3704,7 @@
     <model name='A4'>
       <link name='link_4'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -3807,7 +3807,7 @@
     <model name='B3'>
       <link name='link_4'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -3910,7 +3910,7 @@
     <model name='B4'>
       <link name='link_4'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -4013,7 +4013,7 @@
     <model name='D3_0'>
       <link name='link_4'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -4117,7 +4117,7 @@
       <pose>1.5302 1.50424 0.5 0 -0 0</pose>
       <link name='link'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -4170,7 +4170,7 @@
       <pose>-4.52355 -7.53568 0.5 0 -0 0</pose>
       <link name='link'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -4223,7 +4223,7 @@
       <pose>-1.49275 -1.49365 0.5 0 -0 0</pose>
       <link name='link'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
@@ -4276,7 +4276,7 @@
       <pose>4.48445 -4.47124 0.5 0 -0 0</pose>
       <link name='link'>
         <inertial>
-          <mass>1</mass>
+          <mass>100</mass>
           <inertia>
             <ixx>0.166667</ixx>
             <ixy>0</ixy>
