@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
-import os
-import rospy
-import numpy as np
+import cv2
+import cv_bridge
 import math
+import numpy as np
+import rospy
+import time
+import os
 
 from nav_msgs.msg import OccupancyGrid
-from geometry_msgs.msg import Quaternion, Point, Pose, PoseArray, PoseStamped, PoseWithCovarianceStamped
-from sensor_msgs.msg import LaserScan
+from geometry_msgs.msg import Quaternion, Point, Pose, PoseArray, PoseStamped, Twist, PoseWithCovarianceStamped
+from sensor_msgs.msg import Image, LaserScan
 from std_msgs.msg import Header, String
-
-from std_srvs.srv import Empty, EmptyRequest
 
 import tf
 from tf import TransformListener
@@ -56,6 +57,9 @@ class Node(object):
     def __str__(self):
         return '(' + self.name + ')'
 
+    def __eq__(self, comparator):
+        return self.map_coords == comparator.map_coords
+
 class DuckExpress(object):
     def __init__(self):
         # Will turn true after initialization
@@ -79,6 +83,11 @@ class DuckExpress(object):
         # Particle filter
         rospy.Subscriber(self.amcl_topic, PoseWithCovarianceStamped, self.get_location)
 
+        # Initialize a publisher for movement
+        self.movement_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+        self.road_msg = Twist()
+        self.turn_msg = Twist()
+
         # Initialize location
         self.current_location = PoseWithCovarianceStamped()
         # rospy.wait_for_service(self.local_topic)
@@ -89,6 +98,35 @@ class DuckExpress(object):
         # self.set_map = rospy.ServiceProxy(self.set_map_topic, Empty)
         # set_map_empty_msg = EmptyRequest()
         # self.set_map(set_map_empty_msg)
+
+        """
+        Imaging initialization
+        """
+        # Subscribe to the image scan from the robot
+        rospy.Subscriber('camera/rgb/image_raw', Image, self.image_received)
+
+        # Bridge with OpenCV
+        self.bridge = cv_bridge.CvBridge()
+
+        # Variable that tells the image call back whether to store the image
+        self.capture_image = False
+
+        self.color_bounds = {
+            "red": (np.array([0, 0, 100], dtype = "uint8"), np.array([75, 75, 255], dtype = "uint8")),
+            "orange": (np.array([0, 80, 127], dtype = "uint8"), np.array([102, 153, 255], dtype = "uint8")),
+            "yellow": (np.array([0, 210, 210], dtype = "uint8"), np.array([102, 255, 255], dtype = "uint8")),
+            "green": (np.array([0, 100, 0], dtype = "uint8"), np.array([75, 255, 75], dtype = "uint8")),
+            "cyan": (np.array([90, 90, 0], dtype = "uint8"), np.array([255, 255, 75], dtype = "uint8")),
+            "blue": (np.array([64, 0, 0], dtype = "uint8"), np.array([255, 75, 75], dtype = "uint8")),
+            "magenta": (np.array([100, 0, 100], dtype = "uint8"), np.array([255, 75, 255], dtype = "uint8")),
+        }
+
+        self.horizontal_field_percent = 0.10
+        self.vertical_field_percent = 0.10
+
+        self.nav_line_horizon = 1
+
+        self.directions = ['n', 'e', 's', 'w']
 
 
         # Initialize our map
@@ -116,6 +154,13 @@ class DuckExpress(object):
         self.node_map = {}
         self.current_node = None
         self.align_occupancy_grid()
+
+        self.path = find_path_a_star(self.road_map, self.current_node.map_coords, self.node_map['(4, 6)'].map_coords)
+        print("PATH:", self.path)
+        self.current_dir = "e"
+
+        # Control booleans
+        self.ignore_road = False
         
         self.initialized = True
 
@@ -128,8 +173,15 @@ class DuckExpress(object):
 
         self.current_location = data
 
-        self.current_pos[0] = self.current_location.pose.pose.position.x
-        self.current_pos[1] = self.current_location.pose.pose.position.y
+        self.current_pos[0] = data.pose.pose.position.x
+        self.current_pos[1] = data.pose.pose.position.y
+
+    def image_received(self, data):
+        if self.initialized:
+            self.image_capture = data
+            self.image_height = data.height
+            self.image_width = data.width
+            self.get_nav_line_moment()
 
     def get_particles(self, data):
         return
@@ -244,22 +296,27 @@ class DuckExpress(object):
         if not self.initialized:
             return
 
-        print("Current node is:", str(self.current_node))
-        print("Location:", self.current_location)
-        print("")
+        # print("Current node is:", str(self.current_node))
+        # print("Location:", self.current_location)
+        # print("")
         
-        # Now we see who the closest node is and update current node if necessary
-        nodes = [self.current_node, self.current_node.n, self.current_node.s, self.current_node.e, self.current_node.w]
+        self.estimate_node()
+        self.adjust_movement()
+
+    def estimate_node(self):
+        # See who the closest node is and update current node if necessary
+        nodes = [self.current_node.n, self.current_node.s, self.current_node.e, self.current_node.w]
         
         new_node = None
-        min_distance = 2 ** 32
+        min_distance = 0.25
+        old_node = self.current_node
         for node in nodes:
             # Skip if no neighbor
             if not node:
                 continue
 
             # Otherwise, pick closest node - usually will be self.current_node
-            print("comparing", node.map_coords, node.real_coords, "to", self.current_pos)
+            # print("comparing", node.map_coords, node.real_coords, "to", self.current_pos)
             dist = manhattan_distance(node.real_coords, self.current_pos)
             if dist < min_distance:
                 min_distance = dist
@@ -269,7 +326,162 @@ class DuckExpress(object):
         if new_node:
             self.current_node = new_node
         else:
-            print("ERROR: robot_scan_received; new_node is null")
+            # print("ERROR: robot_scan_received; new_node is null")
+            self.current_node = old_node
+
+        if old_node != self.current_node:
+            print("Current node is:", str(self.current_node))
+
+    def direction_to_turn(self, curr_dir: str, new_dir: str):
+
+        try:
+            curr_idx = self.directions.index(curr_dir)
+        except ValueError:
+            print("Direction \'" + curr_dir + "\' is not valid!")
+
+        try:
+            new_idx = self.directions.index(new_dir)
+        except ValueError:
+            print("Direction \'" + new_dir + "\' is not valid!")
+
+        turn = (new_idx - curr_idx) % 4
+
+        if turn == 0:
+            return "forward"
+        elif turn == 1:
+            return "right"
+        elif turn == 3:
+            return "left"
+        else:
+            raise Exception("This turn shouldn't be valid!")
+
+    def adjust_movement(self):
+        next_coords = self.path[0]
+        current_coords = self.current_node.map_coords
+
+        # test= Twist()
+        # test.linear.x = 0.5
+        # test.angular.z = 0.1
+        # self.movement_pub.publish(test)
+
+
+        # Check if we have entered next node in the path
+        # print("Current:", current_coords, "Next:", next_coords)
+        if next_coords == current_coords:
+            if len(self.path) == 1:
+                print("Reached destination!")
+                self.road_msg.linear.x = 0
+                self.road_msg.angular.z = 0
+                self.movement_pub.publish(self.road_msg)
+                self.ignore_road = True
+                return
+
+            self.path.pop(0)
+            print("Crossed a node:", self.current_node)
+            print("Path:", self.path)
+            print("Next node:", self.path[0])
+            print("")
+
+            next_coords = self.path[0]
+
+            # Determine which direction to go
+            res = (current_coords[0] - next_coords[0], current_coords[1] - next_coords[1])
+
+            new_cardinal = ''
+            if res == (1, 0):
+                new_cardinal = 'n'
+            elif res == (-1, 0):
+                new_cardinal = 's'
+            elif res == (0, 1):
+                new_cardinal = 'w'
+            elif res == (0, -1):
+                new_cardinal = 'e'
+            else:
+                raise Exception("adjust_movement: invalid res:", res)
+
+            print("res is", res)
+            print("new cardinal is", new_cardinal)
+
+            direction = self.direction_to_turn(self.current_dir, new_cardinal)
+
+            print("Moving", direction)
+
+            if direction == "forward":
+                print("Nothing (forward)")
+                return
+
+            self.ignore_road = True
+
+            self.turn_msg.linear.x = 0
+            self.turn_msg.angular.z = 0
+            self.movement_pub.publish(self.turn_msg)
+
+            if direction == "right":
+                print("Turning right")
+                self.turn_msg.linear.x = 0
+                self.turn_msg.angular.z = -0.4
+                curr_idx = self.directions.index(self.current_dir) + 1
+                self.current_dir = self.directions[(curr_idx % 4)]
+
+            elif direction == "left":
+                print("Turning left")
+                self.turn_msg.linear.x = 0
+                self.turn_msg.angular.z = 0.4
+                curr_idx = self.directions.index(self.current_dir) - 1
+                self.current_dir = self.directions[(curr_idx % 4)]
+
+            print("Publishing")
+            self.movement_pub.publish(self.turn_msg)
+            rospy.sleep(5)
+    
+            self.turn_msg.linear.x = 0
+            self.turn_msg.angular.z = 0
+            self.movement_pub.publish(self.turn_msg)
+
+            self.ignore_road = False
+            print("Done")
+
+    def get_nav_line_moment(self):
+        if self.ignore_road:
+            return
+
+        # Take the ROS message with the image and turn it into a format cv2 can use
+        img = self.bridge.imgmsg_to_cv2(self.image_capture, desired_encoding='bgr8')
+
+        # Get the horizon mask
+        # Cite: https://www.pyimagesearch.com/2021/01/19/image-masking-with-opencv/
+        horizon_mask = np.zeros(img.shape[:2], dtype="uint8")
+        cv2.rectangle(horizon_mask, (0, self.image_height - int(self.nav_line_horizon * self.image_height)), (self.image_width, self.image_height), 255, -1)
+        img = cv2.bitwise_and(img, img, mask=horizon_mask)
+
+        # Get the yellow pixels in the image
+        yellow_mask = cv2.inRange(img, self.color_bounds["yellow"][0], self.color_bounds["yellow"][1])
+        yellow_target = cv2.bitwise_and(img, img, mask=yellow_mask)
+
+        # Get the moment of the yellow lines
+        gray_img = cv2.cvtColor(yellow_target, cv2.COLOR_BGR2GRAY)
+        M = cv2.moments(gray_img)
+        if M['m00'] > 0:
+            # Center of the yellow pixels in the image (the moment)
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+            # Uncomment the following code to see the moment in a window!
+            cv2.circle(img, (cx, cy), 20, (0, 0, 0), -1)
+            cv2.circle(img, (int(self.image_width / 2), int(self.image_height / 2)), 10, (255, 0, 0), -1)
+            cv2.imshow("window", img)
+            cv2.waitKey(3)
+
+            err = (self.image_width / 2) - cx
+            k_p = 1.0 / 500.0
+            # twist = Twist()
+            self.road_msg.linear.x = 0.26
+            self.road_msg.angular.z = k_p * err
+            self.movement_pub.publish(self.road_msg)
+
+            return cx, cy
+        else:
+            return None
+        
 
     def run(self):
         rospy.spin()
