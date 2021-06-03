@@ -179,7 +179,7 @@ class DuckExpress(object):
 
         # the farthest and closest distance a robot can be to pick up an object
         self.db_prox_high = 0.23
-        self.db_prox_low = 0.19
+        self.db_prox_low = 0.18
 
         # the interface to the group of joints making up the turtlebot3
         # openmanipulator arm
@@ -190,6 +190,7 @@ class DuckExpress(object):
         self.move_group_gripper = moveit_commander.MoveGroupCommander("gripper")
 
         self.linear = 0
+        self.last_cx = None
 
         self.initialized = True
 
@@ -215,16 +216,14 @@ class DuckExpress(object):
             self.update_robot_pos(data)
 
             if self.driving_towards_dumbbell:
-                front_avg = data.ranges[0]
+                front_scan = data.ranges[0]
 
-                if not self.can_see_dumbbell:
+                if not self.can_see_dumbbell or front_scan == math.inf:
                     self.linear = 0
-                elif front_avg > self.db_prox_high:
-                    print("Forward! (" + str(front_avg) + " / " + str(self.db_prox_high) + ")")
+                elif front_scan > self.db_prox_high:
                     self.linear = 0.1
-                elif front_avg < self.db_prox_low:
+                elif front_scan < self.db_prox_low:
                     self.linear = -0.1
-                    print("Backward! (" + str(front_avg) + " / " + str(self.db_prox_low) + ")")
                 else:
                     self.linear = 0
                     self.driving_towards_dumbbell = False
@@ -541,7 +540,7 @@ class DuckExpress(object):
     block of matching color).
     """
     def grab_dumbbell(self, color):
-        ang_vel = 0
+        
         img = self.image_capture
 
         # color_recog_fov is the percentage of the image that is used to find
@@ -561,6 +560,10 @@ class DuckExpress(object):
         # Get the moment of the dumbbell
         gray_img = cv2.cvtColor(color_target, cv2.COLOR_BGR2GRAY)
 
+        # The default angular velocity. Is zero when an object of a given color
+        # can't be found on screen
+        ang_vel = 0
+        
         M = cv2.moments(gray_img)
         if M['m00'] > 0:
             self.can_see_dumbbell = True
@@ -583,18 +586,16 @@ class DuckExpress(object):
         else:
             self.can_see_dumbbell = False
 
-        if self.turning_towards_dumbbell:
+        # Turn and drive towards dumbbell. "linear" is decided by lidar.
+        if self.turning_towards_dumbbell and self.last_cx != None:
             twist = Twist()
             if self.last_cx > (w / 2) + 5:
                 twist.angular.z = ang_vel
-                print("Turning right! (" + str(twist.angular.z) + ")")
             elif self.last_cx < (w / 2) - 5:
-                twist.angular.z = ang_vel * -1
-                print("Turning left! (" + str(twist.angular.z) + ")")
+                twist.angular.z = ang_vel
 
             twist.linear.x = self.linear
             self.movement_pub.publish(twist)
-
             
     """""""""""""""""""""""""""""""""
           ROBOT ARM FUNCTIONS
@@ -612,21 +613,21 @@ class DuckExpress(object):
         self.move_gripper([0.018, 0.018])
 
         print("Arm ready to grab!")
-        rospy.sleep(2)
+        rospy.sleep(3)
 
     def move_to_grabbed(self):
         self.move_gripper([0.008, -0.008])        
         self.move_arm([0, -1.18, 0.225, 0.035])
 
         print("Dumbbell is grabbed!")
-        rospy.sleep(2)
+        rospy.sleep(3)
 
     def move_to_release(self):
         self.move_arm([0, -0.35, -0.15, 0.5])
         self.move_gripper([0.01, 0.01])
 
         print("Dumbbell has been released!")
-        rospy.sleep(2)
+        rospy.sleep(3)
         
     def run(self):
         self.move_to_ready()
