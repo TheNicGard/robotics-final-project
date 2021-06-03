@@ -104,6 +104,8 @@ def find_path_a_star(map, start_pos, dest_pos):
     start_node = AStarNode(position=start_pos)
     dest_node = AStarNode(position=dest_pos)
 
+    print("find_path_a_star: Plotting course from", start_pos, "to", dest_pos)
+
     # Initialize open and closed lists
     open_list = []
     closed_list = []
@@ -256,18 +258,18 @@ def example(print_maze = True):
     maze4 = [
         [0,0,0,0,0,0,0,0,0],
         [0,1,0,1,0,1,0,1,0],
-        [0,0,0,0,0,0,0,0,0],
+        [0,1,0,1,0,0,0,0,0],
+        [0,1,0,1,0,1,0,1,0],
+        [0,1,0,1,0,0,0,0,0],
+        [0,1,0,1,0,1,0,1,0],
+        [0,1,0,1,0,1,0,1,0],
         [0,1,0,1,0,1,0,1,0],
         [0,0,0,0,0,0,0,0,0],
-        [0,1,1,1,1,1,1,1,0],
-        [0,0,0,0,0,0,0,0,0],
-        [1,1,1,1,1,1,1,1,1],
-        [0,0,0,0,0,0,0,0,0]
     ]
 
-    maze = maze2
+    maze = maze4
     
-    start = (0, 0)
+    start = (1, 2)
     end = (len(maze)-1, len(maze[0])-1)
 
     path = find_path_a_star(maze, start, end)

@@ -8,8 +8,9 @@ import numpy as np
 import os
 import rospy
 import time
+import json
 
-from geometry_msgs.msg import Quaternion, Point, Pose, PoseArray, PoseStamped, Twist
+from geometry_msgs.msg import Quaternion, Point, Pose, PoseArray, PoseStamped, Twist, PoseWithCovarianceStamped
 from nav_msgs.msg import OccupancyGrid
 from sensor_msgs.msg import Image, LaserScan
 from std_msgs.msg import Header, String
@@ -23,25 +24,19 @@ from pathing import find_path_a_star
 
 PATH_PREFIX = os.path.dirname(__file__) + "/robot_maps/"
 MAP_NAME = "neighborhood_simple"
+DISTANCE_ALGORITHM = "euclidean"
 
-def manhattan_distance(x_node, y_node):
-    return abs(x_node[0] - y_node[0]) + abs(x_node[1] - y_node[1])
-
-def get_yaw_from_pose(p):
-    """ A helper function that takes in a Pose object (geometry_msgs) and returns yaw"""
-
-    yaw = (euler_from_quaternion([
-            p.orientation.x,
-            p.orientation.y,
-            p.orientation.z,
-            p.orientation.w])
-            [2])
-
-    return yaw
+def distance(x_node, y_node):
+    if DISTANCE_ALGORITHM == "euclidean":
+        return math.sqrt(((x_node[0] - y_node[0]) ** 2) + ((x_node[1] - y_node[1]) ** 2))
+    elif DISTANCE_ALGORITHM == "manhattan":
+        return abs(x_node[0] - y_node[0]) + abs(x_node[1] - y_node[1])
+    else:
+        raise Exception("distance: unkown algorithm:", DISTANCE_ALGORITHM)
 
 """
 The Node object serves as a point of reference for the robot. Nodes are spaced approximately
-3 meters apart from one another and are present anywhere the robot can drive unobstructed
+1.5 meters apart from one another and are present anywhere the robot can drive unobstructed
 on a road. There are no off-road nodes.
 """
 class Node(object):
@@ -63,6 +58,9 @@ class Node(object):
     def __str__(self):
         return '(' + self.name + ')'
 
+    def __eq__(self, comparator):
+        return self.map_coords == comparator.map_coords
+
 
 class DuckExpress(object):
     def __init__(self):
@@ -77,6 +75,16 @@ class DuckExpress(object):
         self.map_topic = "map"
         self.odom_frame = "odom"
         self.scan_topic = "scan"
+        self.amcl_topic = "/amcl_pose"
+
+        """
+        AMCL Initialization
+        """
+        # Subscribe to particle filter
+        rospy.Subscriber(self.amcl_topic, PoseWithCovarianceStamped, self.get_location)
+
+        # Initialize location
+        self.current_location = PoseWithCovarianceStamped()
 
         """
         Map initialization
@@ -103,11 +111,19 @@ class DuckExpress(object):
 
         self.odom_pose_last_motion_update = None
 
+        # Misc. movement variables
+        self.linear = 0
+        self.last_cx = None
+
         # Initialize lidar sub
         rospy.Subscriber(self.scan_topic, LaserScan, self.robot_scan_received)
 
         # Initialize a publisher for movement
         self.movement_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+
+        # Initialize Twist messages
+        self.road_msg = Twist()
+        self.turn_msg = Twist()
 
         """
         Imaging initialization
@@ -169,18 +185,39 @@ class DuckExpress(object):
         # Align the road map to the ocupancy grid to create the node map
         self.align_occupancy_grid()
 
-        self.current_path = find_path_a_star(np.flip(self.road_map, 0), self.current_node.map_coords, (6, 4))
-        print("current_path:", self.current_path)
+        # Robot faces East to start
+        self.current_dir = "e"
 
-        # State for grabbing dumbbell
-        self.turning_towards_dumbbell = True
-        self.driving_towards_dumbbell = True
-        self.picking_up_dumbbell = False
+        # Load color maps
+        with open(PATH_PREFIX + MAP_NAME + ".json", "r") as infile:
+            color_maps = json.load(infile)
+        self.active_color = "green"
+        self.pickup_map = color_maps['pickup']
+        self.dropoff_map = color_maps['dropoff']
+
+        self.path = find_path_a_star(np.flip(self.road_map, 0), self.current_node.map_coords, (1, 2))
+        print("current_path:", self.path)
+
+        # Control booleans
+        self.on_road = True
+        self.ignore_road = False
+        self.ignore_object = True
+        self.turning_towards_dumbbell = False
+        self.driving_towards_dumbbell = False
+        self.picked_up_dumbbell = False
+        self.can_see_dumbbell = False
+        self.dropping_off_dumbbell = False
 
         # the farthest and closest distance a robot can be to pick up an object
-        self.db_prox_high = 0.23
-        self.db_prox_low = 0.18
+        self.db_prox_high = 0.21
+        self.db_prox_low = 0.16
+        self.house_prox_high = 0.48
+        self.house_prox_low = 0.43
 
+
+        """
+        MoveIt initialization
+        """
         # the interface to the group of joints making up the turtlebot3
         # openmanipulator arm
         self.move_group_arm = moveit_commander.MoveGroupCommander("arm")
@@ -189,51 +226,68 @@ class DuckExpress(object):
         # openmanipulator gripper
         self.move_group_gripper = moveit_commander.MoveGroupCommander("gripper")
 
-        self.linear = 0
-        self.last_cx = None
+        # move arm to ready position
+        self.move_to_ready()
 
         self.initialized = True
 
     def get_map(self, data):
         self.map = data
 
-    def translate_map(self):
+    def get_location(self, data):
         if not self.initialized:
             return
 
+        self.current_location = data
+
+        self.current_pos[0] = data.pose.pose.position.x
+        self.current_pos[1] = data.pose.pose.position.y
+
     def image_received(self, data):
-        if self.initialized:
-            # Take the ROS message with the image and turn it into a format cv2 can use
-            self.image_capture = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
-            
-            self.image_height = data.height
-            self.image_width = data.width
-            # self.get_nav_line_moment()
-            self.grab_dumbbell("green")
+        if not self.initialized:
+            return
+        # Take the ROS message with the image and turn it into a format cv2 can use
+        self.image_capture = self.bridge.imgmsg_to_cv2(data, desired_encoding='bgr8')
+        
+        self.image_height = data.height
+        self.image_width = data.width
+        
+        if self.on_road and not self.ignore_road:
+            self.get_nav_line_moment()
+
+        if self.turning_towards_dumbbell:
+            self.orient_to_dumbbell(self.active_color)
 
     def robot_scan_received(self, data):
-        if self.initialized:
-            self.update_robot_pos(data)
+        if not self.initialized:
+            return 
 
-            if self.driving_towards_dumbbell:
-                front_scan = data.ranges[0]
+        if self.driving_towards_dumbbell:
+            front_scan = data.ranges[0]
+            self.drive_to_dumbbell(front_scan)
 
-                if not self.can_see_dumbbell or front_scan == math.inf:
-                    self.linear = 0
-                elif front_scan > self.db_prox_high:
-                    self.linear = 0.1
-                elif front_scan < self.db_prox_low:
-                    self.linear = -0.1
-                else:
-                    self.linear = 0
-                    self.driving_towards_dumbbell = False
-                    self.move_to_grabbed()
-        
+        elif self.on_road:
+            self.estimate_node()
+            self.adjust_movement()
+
+        elif self.dropping_off_dumbbell:
+            self.drive_to_house(front_scan)
+
+        else:
+            self.return_to_road()
+
+    """""""""""""""""""""""""""""""""
+          ROBOT IMAGING FUNCTIONS
+    """"""""""""""""""""""""""""""""" 
+
     """
     get_nav_line_moment: Get the center position of the blob of the yellow
     navigation line on the screen. Retuns None if there are no yellow pixels.
     """
     def get_nav_line_moment(self):
+        if self.ignore_road:
+            return
+
         img = self.image_capture
         
         # Get the horizon mask
@@ -254,22 +308,121 @@ class DuckExpress(object):
             cx = int(M['m10']/M['m00'])
             cy = int(M['m01']/M['m00'])
             # Uncomment the following code to see the moment in a window!
-            # cv2.circle(img, (cx, cy), 20, (0, 0, 0), -1)
-            # cv2.circle(img, (int(self.image_width / 2), int(self.image_height / 2)), 10, (255, 0, 0), -1)
-            # cv2.imshow("window", img)
-            # cv2.waitKey(3)
+            cv2.circle(img, (cx, cy), 20, (0, 0, 0), -1)
+            cv2.circle(img, (int(self.image_width / 2), int(self.image_height / 2)), 10, (255, 0, 0), -1)
+            cv2.imshow("window", img)
+            cv2.waitKey(3)
 
             err = (self.image_width / 2) - cx
             k_p = 1.0 / 500.0
             twist = Twist()
             twist.linear.x = 0.26
             twist.angular.z = k_p * err
-            self.movement_pub.publish(twist)
+            if not self.ignore_road:
+                self.movement_pub.publish(twist)
 
             return cx, cy
         else:
             return None
 
+    """
+    orient_to_dumbbell: finds the moment of a dumbbell determined by the color
+    string. Assumes that the dumbbell is visible (i.e. it's not in front of a
+    block of matching color).
+    """
+    def orient_to_dumbbell(self, color):
+        if self.on_road:
+            return
+
+        img = self.image_capture
+
+        # color_recog_fov is the percentage of the image that is used to find
+        # the colored object - put "blinders" on if going for dumbbell
+        if self.picked_up_dumbbell:
+            self.color_recog_fov = 1.0
+        else:
+            self.color_recog_fov = 0.5
+
+        # Reduce the horizontal FOV (to avoid looking at adjacent objects of
+        # the same color
+        w, h = self.image_width, self.image_height
+        cv2.rectangle(img, (-w, 0), (int(w * self.color_recog_fov) // 2, h), (0, 0, 0), -1)
+        cv2.rectangle(img, (w - (int(w * self.color_recog_fov) // 2), 0), (2 * w, h), 0, -1)
+
+        # Get the colored pixels in the image
+        color_mask = cv2.inRange(img, self.color_bounds[color][0], self.color_bounds[color][1])        
+        color_target = cv2.bitwise_and(img, img, mask=color_mask)
+
+        # Get the moment of the dumbbell
+        gray_img = cv2.cvtColor(color_target, cv2.COLOR_BGR2GRAY)
+
+        # The default angular velocity. Is zero when an object of a given color
+        # can't be found on screen
+        ang_vel = 0
+        
+        M = cv2.moments(gray_img)
+        if M['m00'] > 0:
+            if not self.picked_up_dumbbell:
+                self.can_see_dumbbell = True
+                self.driving_towards_dumbbell = True
+            
+            # Center of the colored pixels in the image (the moment)
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+
+            # print("midpoint:", str(w // 2), "cx:", cx)
+            # Uncomment the following code to see the moment in a window!
+            cv2.line(color_target, (cx, 0), (cx, self.image_height), (128, 128, 128), 3)
+            cv2.putText(color_target, "(" + str(cx) + ", " + str(cy) + ")", (0, 0), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (128, 128, 128))
+            cv2.imshow("window", color_target)
+            cv2.waitKey(3)
+
+            self.last_cx = cx
+            err = (w / 2) - cx
+            k_p = 1.0 / 500.0
+            ang_vel = err * k_p
+        else:
+            if not self.picked_up_dumbbell:
+                self.can_see_dumbbell = False
+
+        # Turn and drive towards object. "linear" is decided by lidar.
+        if (self.turning_towards_dumbbell or self.picked_up_dumbbell) and self.last_cx != None and not self.on_road and not self.ignore_object:
+            twist = Twist()
+            if self.last_cx > (w / 2) + 5:
+                twist.angular.z = ang_vel
+            elif self.last_cx < (w / 2) - 5:
+                twist.angular.z = ang_vel
+
+            twist.linear.x = self.linear
+            if not self.ignore_object:
+                self.movement_pub.publish(twist)
+
+    """
+    drive_to_house: When the robot has reached a dropoff node, it must offroad to the house's 
+    dropoff zone. This function moves the robot there.
+    """
+    def drive_to_house(self, front_scan):
+        print("Driving to house")
+        if front_scan == math.inf:
+            print("ERROR: drive_to_house: robot sees nothing in front")
+            self.linear = 0
+        elif front_scan > self.house_prox_high:
+            self.linear = 0.1
+        elif front_scan < self.house_prox_low:
+            self.linear = -0.1
+        else:
+            self.ignore_object = True
+            twist = Twist()
+            twist.linear.x = 0
+            twist.angular.z = 0
+            self.movement_pub.publish(twist)
+            self.picked_up_dumbbell = False
+            self.move_to_released()
+
+    """""""""""""""""""""""""""""""""
+          ROBOT MOVEMENT FUNCTIONS
+    """""""""""""""""""""""""""""""""
+    
     """
     direction_to_turn: determines if the robot should turn left, right, or continue
     forward given current cardinal direction and destination cardinal direction.
@@ -296,11 +449,258 @@ class DuckExpress(object):
         else:
             raise Exception("This turn shouldn't be valid!")
 
+    """
+    adjust_movement: if the robot has crossed into a "new" node, determines if the robot
+    should continue forward or turn. 
+    """
+    def adjust_movement(self):
+        next_coords = self.path[0]
+        current_coords = self.current_node.map_coords
+
+        # Check if we have entered next node in the path
+        # print("Current:", current_coords, "Next:", next_coords)
+        if next_coords == current_coords:
+            if len(self.path) == 1:
+                print("Reached destination!")
+                self.road_msg.linear.x = 0
+                self.road_msg.angular.z = 0
+                self.movement_pub.publish(self.road_msg)
+                self.ignore_road = True
+                self.ignore_object = False
+                self.on_road = False
+
+                # Make one more 90 degree turn
+                self.turn_msg.linear.x = 0
+
+                if self.picked_up_dumbbell:
+                    self.turn_msg.angular.z = -0.4
+                    curr_idx = self.directions.index(self.current_dir) + 1
+                
+                    self.dropping_off_dumbbell = True
+                else:
+                    self.turn_msg.angular.z = 0.4
+                    curr_idx = self.directions.index(self.current_dir) - 1
+
+                    self.turning_towards_dumbbell = True
+
+                self.current_dir = self.directions[(curr_idx % 4)]
+                self.movement_pub.publish(self.turn_msg)
+
+                rospy.sleep(4)
+
+                self.turn_msg.linear.x = 0
+                self.turn_msg.angular.z = 0
+                self.movement_pub.publish(self.turn_msg)
+                return
+
+            self.path.pop(0)
+            print("Current node:", self.current_node)
+            print("Path:", self.path)
+            print("Next node:", self.path[0])
+            print("")
+
+            next_coords = self.path[0]
+
+            # Determine which direction to go
+            res = (current_coords[0] - next_coords[0], current_coords[1] - next_coords[1])
+
+            new_cardinal = ''
+            if res == (1, 0):
+                new_cardinal = 'n'
+            elif res == (-1, 0):
+                new_cardinal = 's'
+            elif res == (0, 1):
+                new_cardinal = 'w'
+            elif res == (0, -1):
+                new_cardinal = 'e'
+            else:
+                raise Exception("adjust_movement: invalid res:", res)
+
+            print("res is", res)
+            print("new cardinal is", new_cardinal)
+
+            direction = self.direction_to_turn(self.current_dir, new_cardinal)
+
+            print("Moving", direction)
+
+            if direction == "forward":
+                print("Nothing (forward)")
+                return
+
+            self.ignore_road = True
+
+            self.turn_msg.linear.x = 0
+            self.turn_msg.angular.z = 0
+            self.movement_pub.publish(self.turn_msg)
+
+            if direction == "right":
+                print("Turning right")
+                self.turn_msg.angular.z = -0.4
+                curr_idx = self.directions.index(self.current_dir) + 1
+
+            elif direction == "left":
+                print("Turning left")
+                self.turn_msg.angular.z = 0.4
+                curr_idx = self.directions.index(self.current_dir) - 1
+            
+            self.turn_msg.linear.x = 0
+            self.current_dir = self.directions[(curr_idx % 4)]
+
+            print("Publishing")
+            self.movement_pub.publish(self.turn_msg)
+            rospy.sleep(4)
+    
+            self.turn_msg.linear.x = 0
+            self.turn_msg.angular.z = 0
+            self.movement_pub.publish(self.turn_msg)
+
+            self.ignore_road = False
+            print("Done")
+
+    """
+    estimate_node: Uses robot's current estimated position to check what the closest 
+    node is. This node becomes the new current node.
+    """
+    def estimate_node(self):
+        # See who the closest node is and update current node if necessary
+        nodes = [self.current_node.n, self.current_node.s, self.current_node.e, self.current_node.w]
+        
+        new_node = None
+        min_distance = 0.3
+        old_node = self.current_node
+        for node in nodes:
+            # Skip if no neighbor
+            if not node:
+                continue
+
+            # Otherwise, pick closest node - usually will be self.current_node
+            # print("comparing", node.map_coords, node.real_coords, "to", self.current_pos)
+            dist = distance(node.real_coords, self.current_pos)
+            # print(self.current_pos, "vs", node.real_coords, "=", dist)
+            if dist <= min_distance:
+                min_distance = dist
+                new_node = node
+
+        # Sanity check
+        if new_node:
+            self.current_node = new_node
+        else:
+            # print("ERROR: robot_scan_received; new_node is null")
+            self.current_node = old_node
+
+        if old_node != self.current_node:
+            print("Current node is:", str(self.current_node))
+
+    """
+    drive_to_dumbbell: Once a dumbbell has been identified, this function drives the robot within 
+    arm's reach of it
+    """
+    def drive_to_dumbbell(self, front_scan):
+        print("Driving to dumbbell")
+        if not self.can_see_dumbbell or front_scan == math.inf:
+            self.linear = 0
+        elif front_scan > self.db_prox_high:
+            self.linear = 0.1
+        elif front_scan < self.db_prox_low:
+            self.linear = -0.1
+        else:
+            self.ignore_object = True
+            twist = Twist()
+            twist.linear.x = 0
+            twist.angular.z = 0
+            self.movement_pub.publish(twist)
+            self.driving_towards_dumbbell = False
+            self.picked_up_dumbbell = True
+            self.move_to_grabbed()
+
+   
+    
+
+    """
+    return_to_road: Once a dumbbell has been picked or delivered, this function returns the robot
+    to the road
+    """
+    def return_to_road(self):
+        print("Returning to the road!")
+        # Back up to the road
+        self.road_msg.linear.x = -0.26
+        self.road_msg.angular.z = 0.0
+
+        self.movement_pub.publish(self.road_msg)
+        rospy.sleep(3)
+
+
+        self.road_msg.linear.x = 0.0
+        self.road_msg.angular.z = 0.0
+
+        self.movement_pub.publish(self.road_msg)
+
+        # Choose a new destination
+        if self.picked_up_dumbbell:
+            dest_coords = self.dropoff_map[self.active_color]
+        else:
+            dest_coords = self.pickup_map[self.active_color]
+            self.move_to_ready()
+
+        # Recalculate path
+        print("Current node:", self.current_node)
+        print("Destination node:", dest_coords)
+        self.path = find_path_a_star(self.road_map, self.current_node.map_coords, tuple(dest_coords))
+        print("New path:", self.path)
+        self.ignore_road = False
+        self.on_road = True
+
+            
+    """""""""""""""""""""""""""""""""
+          ROBOT ARM FUNCTIONS
+    """""""""""""""""""""""""""""""""
+    def move_arm(self, goal):
+        self.move_group_arm.go(goal, wait=True)
+        self.move_group_arm.stop()
+        
+    def move_gripper(self, goal):
+        self.move_group_gripper.go(goal, wait=True)
+        self.move_group_gripper.stop()
+                
+    def move_to_ready(self):
+        self.move_arm([0.0, 0.55, 0.3, -0.85])
+        self.move_gripper([0.018, 0.018])
+
+        print("Arm ready to grab!")
+        rospy.sleep(3)
+
+    def move_to_grabbed(self):
+        self.move_gripper([0.008, -0.008])     
+        self.move_arm([0, 0.45, -0.75, -0.3])
+        rospy.sleep(1)
+
+        self.move_arm([0, -1.18, 0.225, -0.3])
+
+        print("Dumbbell is grabbed!")
+        rospy.sleep(3)
+
+    def move_to_release(self):
+        self.move_arm([0, -0.35, -0.15, 0.5])
+        self.move_gripper([0.01, 0.01])
+
+        print("Dumbbell has been released!")
+        rospy.sleep(3)
+
+
+    """""""""""""""""""""""""""""""""
+             MISC FUNCTIONS
+    """""""""""""""""""""""""""""""""
+
     """ 
     align_occupancy_grid: maps the loaded OccupancyGrid map onto the loaded road map
     to create a node map. There is one node for each '0' item in the road map.
     """
     def align_occupancy_grid(self):
+        """ The purpose of align_occupancy_grid is to map the road map onto the occupancy 
+            grid. Basically, we want to get the real points of our allowable nodes so that
+            we can run A_Star on it """
+        print(self.map.info)
+        
         timer = 5
         decrement = 0
         candidates = []
@@ -401,236 +801,7 @@ class DuckExpress(object):
 
         print("Current node is:", repr(self.current_node))
 
-    """
-    update_robot_pos: Uses odometry to update the robot's estimated current positions
-    Most of this code is from the particle filter project
-    """
-    def update_robot_pos(self, data):
-        # we need to be able to transfrom the laser frame to the base frame
-        if not(self.tf_listener.canTransform(self.base_frame, data.header.frame_id, data.header.stamp)):
-            return
-
-        # wait for a little bit for the transform to become avaliable (in case the scan arrives
-        # a little bit before the odom to base_footprint transform was updated) 
-        self.tf_listener.waitForTransform(self.base_frame, self.odom_frame, data.header.stamp, rospy.Duration(0.5))
-        if not(self.tf_listener.canTransform(self.base_frame, data.header.frame_id, data.header.stamp)):
-            return
-
-        # calculate the pose of the laser distance sensor 
-        p = PoseStamped(
-            header=Header(stamp=rospy.Time(0),
-                          frame_id=data.header.frame_id))
-
-        self.laser_pose = self.tf_listener.transformPose(self.base_frame, p)
-
-        # determine where the robot thinks it is based on its odometry
-        p = PoseStamped(
-            header=Header(stamp=data.header.stamp,
-                          frame_id=self.base_frame),
-            pose=Pose())
-
-        self.odom_pose = self.tf_listener.transformPose(self.odom_frame, p)
-
-        # we need to be able to compare the current odom pose to the prior odom pose
-        # if there isn't a prior odom pose, set the odom_pose variable to the current pose
-        if not self.odom_pose_last_motion_update:
-            self.odom_pose_last_motion_update = self.odom_pose
-            return
-
-        # check to see if we've moved far enough to perform an update
-
-        curr_x = self.odom_pose.pose.position.x
-        old_x = self.odom_pose_last_motion_update.pose.position.x
-        curr_y = self.odom_pose.pose.position.y
-        old_y = self.odom_pose_last_motion_update.pose.position.y
-        curr_yaw = get_yaw_from_pose(self.odom_pose.pose)
-        old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
-
-        if (np.abs(curr_x - old_x) > self.lin_mvmt_threshold or 
-            np.abs(curr_y - old_y) > self.lin_mvmt_threshold or
-            np.abs(curr_yaw - old_yaw) > self.ang_mvmt_threshold):
-            print("Current node is:", str(self.current_node))
-
-            # Now we must adjust the robot's position - distance is multipled by resolution
-            distance_moved = math.sqrt(((curr_x - old_x) ** 2) + ((curr_y - old_y) ** 2))
-
-            curr_yaw = get_yaw_from_pose(self.odom_pose.pose)
-            old_yaw = get_yaw_from_pose(self.odom_pose_last_motion_update.pose)
-
-            #The following code is used to determine whether the robot is moving in reverse since distance is always positive
-            x_pos = False
-            if curr_x - old_x > 0:
-                x_pos = True
-
-            y_pos = False
-            if curr_y - old_y > 0:
-                y_pos = True
-
-
-            moving_backwards = False
-            working_yaw = curr_yaw % (2 * np.pi)
-
-            #use the unit circle to determine if based on the sign of the x and y if we are moving forward or backwards
-            #ex. if robot is facing between pi/2 and pi, it is moving backwards if x is positive or y is negative
-            if working_yaw <= np.pi / 2:
-                moving_backwards = not x_pos or not y_pos
-            elif working_yaw <= np.pi:
-                moving_backwards = x_pos or not y_pos
-            elif working_yaw <= (3 * np.pi) / 2:
-                moving_backwards = x_pos or y_pos
-            elif working_yaw <= 2 * np.pi:
-                moving_backwards = not x_pos or y_pos
-            else:
-                print("ERROR: yaw is outside of range")
-                print("original yaw:", curr_yaw, "working_yaw:", working_yaw, end="\n\n")
-            
-            if moving_backwards:
-                distance_moved *= -1
-
-            self.current_pos[0] += math.cos(working_yaw) * distance_moved
-            self.current_pos[1] += math.sin(working_yaw) * distance_moved
-
-            # Update the robot's node
-            self.estimate_node()
-            # self.move_to_node()
-
-            # Finally, update the odom info
-            self.odom_pose_last_motion_update = self.odom_pose
-
-    """
-    estimate_node: Uses robot's current estimated position to check what the closest 
-    node is. This node becomes the new current node.
-    """
-    def estimate_node(self):
-        # See who the closest node is and update current node if necessary
-        nodes = [self.current_node, self.current_node.n, self.current_node.s, self.current_node.e, self.current_node.w]
-        
-        new_node = None
-        min_distance = 2 ** 32
-        for node in nodes:
-            # Skip if no neighbor
-            if not node:
-                continue
-
-            # Otherwise, pick closest node - usually will be self.current_node
-            print("comparing", node.map_coords, node.real_coords, "to", self.current_pos)
-            dist = manhattan_distance(node.real_coords, self.current_pos)
-            if dist < min_distance:
-                min_distance = dist
-                new_node = node
-
-        # Sanity check
-        if new_node:
-            self.current_node = new_node
-        else:
-            print("ERROR: robot_scan_received; new_node is null")
-
-    """
-    move_to_node: Determines if the robot is sufficiently close to the next node in 
-    its path. If so, it decides whether it should turn left, right, or continue
-    forwards and does so. Otherwise does nothing.
-    """
-    def move_to_node(self):
-        threshold = 0.2
-        return
-
-    """
-    grab_dumbbell: finds the moment of a dumbbell determined by the color
-    string. Assumes that the dumbbell is visible (i.e. it's not in front of a
-    block of matching color).
-    """
-    def grab_dumbbell(self, color):
-        
-        img = self.image_capture
-
-        # color_recog_fov is the percentage of the image that is used to find
-        # the colored object
-        self.color_recog_fov = 0.5
-
-        # Reduce the horizontal FOV (to avoid looking at adjacent objects of
-        # the same color
-        w, h = self.image_width, self.image_height
-        cv2.rectangle(img, (-w, 0), (int(w * self.color_recog_fov) // 2, h), (0, 0, 0), -1)
-        cv2.rectangle(img, (w - (int(w * self.color_recog_fov) // 2), 0), (2 * w, h), 0, -1)
-
-        # Get the colored pixels in the image
-        color_mask = cv2.inRange(img, self.color_bounds[color][0], self.color_bounds[color][1])        
-        color_target = cv2.bitwise_and(img, img, mask=color_mask)
-
-        # Get the moment of the dumbbell
-        gray_img = cv2.cvtColor(color_target, cv2.COLOR_BGR2GRAY)
-
-        # The default angular velocity. Is zero when an object of a given color
-        # can't be found on screen
-        ang_vel = 0
-        
-        M = cv2.moments(gray_img)
-        if M['m00'] > 0:
-            self.can_see_dumbbell = True
-            
-            # Center of the colored pixels in the image (the moment)
-            cx = int(M['m10']/M['m00'])
-            cy = int(M['m01']/M['m00'])
-
-            print("midpoint:", str(w // 2), "cx:", cx)
-            # Uncomment the following code to see the moment in a window!
-            cv2.line(color_target, (cx, 0), (cx, self.image_height), (128, 128, 128), 3)
-            cv2.putText(color_target, "(" + str(cx) + ", " + str(cy) + ")", (0, 0), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (128, 128, 128))
-            cv2.imshow("window", color_target)
-            cv2.waitKey(3)
-
-            self.last_cx = cx
-            err = (w / 2) - cx
-            k_p = 1.0 / 500.0
-            ang_vel = err * k_p
-        else:
-            self.can_see_dumbbell = False
-
-        # Turn and drive towards dumbbell. "linear" is decided by lidar.
-        if self.turning_towards_dumbbell and self.last_cx != None:
-            twist = Twist()
-            if self.last_cx > (w / 2) + 5:
-                twist.angular.z = ang_vel
-            elif self.last_cx < (w / 2) - 5:
-                twist.angular.z = ang_vel
-
-            twist.linear.x = self.linear
-            self.movement_pub.publish(twist)
-            
-    """""""""""""""""""""""""""""""""
-          ROBOT ARM FUNCTIONS
-    """""""""""""""""""""""""""""""""
-    def move_arm(self, goal):
-        self.move_group_arm.go(goal, wait=True)
-        self.move_group_arm.stop()
-        
-    def move_gripper(self, goal):
-        self.move_group_gripper.go(goal, wait=True)
-        self.move_group_gripper.stop()
-                
-    def move_to_ready(self):
-        self.move_arm([0.0, 0.55, 0.3, -0.85])
-        self.move_gripper([0.018, 0.018])
-
-        print("Arm ready to grab!")
-        rospy.sleep(3)
-
-    def move_to_grabbed(self):
-        self.move_gripper([0.008, -0.008])        
-        self.move_arm([0, -1.18, 0.225, 0.035])
-
-        print("Dumbbell is grabbed!")
-        rospy.sleep(3)
-
-    def move_to_release(self):
-        self.move_arm([0, -0.35, -0.15, 0.5])
-        self.move_gripper([0.01, 0.01])
-
-        print("Dumbbell has been released!")
-        rospy.sleep(3)
-        
     def run(self):
-        self.move_to_ready()
         rospy.spin()
 
 if __name__ == "__main__":

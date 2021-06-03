@@ -32,18 +32,6 @@ def distance(x_node, y_node):
     else:
         raise Exception("distance: unkown algorithm:", DISTANCE_ALGORITHM)
 
-def get_yaw_from_pose(p):
-    """ A helper function that takes in a Pose object (geometry_msgs) and returns yaw"""
-
-    yaw = (euler_from_quaternion([
-            p.orientation.x,
-            p.orientation.y,
-            p.orientation.z,
-            p.orientation.w])
-            [2])
-
-    return yaw
-
 class Node(object):
     def __init__(self, name, index, real_coords, map_coords):
         self.name = name
@@ -80,11 +68,6 @@ class DuckExpress(object):
         self.odom_frame = "odom"
         self.scan_topic = "scan"
         self.amcl_topic = "/amcl_pose"
-        self.local_topic = "/global_localization"
-        self.set_map_topic = "/set_map"
-
-        # Node publisher for debugging
-        rospy.Subscriber("/particlecloud", PoseArray, self.get_particles)
 
         # Particle filter
         rospy.Subscriber(self.amcl_topic, PoseWithCovarianceStamped, self.get_location)
@@ -96,14 +79,6 @@ class DuckExpress(object):
 
         # Initialize location
         self.current_location = PoseWithCovarianceStamped()
-        # rospy.wait_for_service(self.local_topic)
-        # self.global_localization = rospy.ServiceProxy(self.local_topic, Empty)
-        # localization_empty_msg = EmptyRequest()
-        # self.global_localization(localization_empty_msg)
-
-        # self.set_map = rospy.ServiceProxy(self.set_map_topic, Empty)
-        # set_map_empty_msg = EmptyRequest()
-        # self.set_map(set_map_empty_msg)
 
         """
         Imaging initialization
@@ -188,9 +163,6 @@ class DuckExpress(object):
             self.image_height = data.height
             self.image_width = data.width
             self.get_nav_line_moment()
-
-    def get_particles(self, data):
-        return
 
     def align_occupancy_grid(self):
         """ The purpose of align_occupancy_grid is to map the road map onto the occupancy 
@@ -365,12 +337,6 @@ class DuckExpress(object):
     def adjust_movement(self):
         next_coords = self.path[0]
         current_coords = self.current_node.map_coords
-
-        # test= Twist()
-        # test.linear.x = 0.5
-        # test.angular.z = 0.1
-        # self.movement_pub.publish(test)
-
 
         # Check if we have entered next node in the path
         # print("Current:", current_coords, "Next:", next_coords)
