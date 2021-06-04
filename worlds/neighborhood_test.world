@@ -90,7 +90,7 @@
     <state world_name='default'>
       <sim_time>133 316000000</sim_time>
       <real_time>0 0</real_time>
-      <wall_time>1622772534 892605841</wall_time>
+      <wall_time>1622785129 803319934</wall_time>
       <iterations>0</iterations>
       <model name='A1'>
         <pose>4.5 1.5 0.499995 1e-05 -1e-06 0.103985</pose>
@@ -153,10 +153,10 @@
         </link>
       </model>
       <model name='Blue_Dumbbell'>
-        <pose>3.72452 -1.48013 0.1905 -0 -3e-06 -3.6e-05</pose>
+        <pose>3.7854 1.43905 0.1905 -0 -3e-06 -3.6e-05</pose>
         <scale>1 1 1</scale>
         <link name='link_0'>
-          <pose>3.72452 -1.48013 0.1905 1.5708 -3e-06 -3.6e-05</pose>
+          <pose>3.7854 1.43905 0.1905 1.5708 -3e-06 -3.6e-05</pose>
           <velocity>-0.000532 0.000129 -0.000201 -0.000676 -0.002791 2e-06</velocity>
           <acceleration>0 0 0 0 -0 0</acceleration>
           <wrench>0 0 0 0 -0 0</wrench>
@@ -193,10 +193,10 @@
         </link>
       </model>
       <model name='Cyan_Dumbbell'>
-        <pose>3.79802 -7.49352 0.1905 0 -0 1.5e-05</pose>
+        <pose>-2.29782 1.53635 0.1905 0 -0 1.5e-05</pose>
         <scale>1 1 1</scale>
         <link name='link_0'>
-          <pose>3.79802 -7.49352 0.1905 1.5708 -0 1.5e-05</pose>
+          <pose>-2.29782 1.53635 0.1905 1.5708 -0 1.5e-05</pose>
           <velocity>0.000324 7e-06 4.9e-05 -3e-05 0.001704 2.6e-05</velocity>
           <acceleration>0 0 0 0 -0 0</acceleration>
           <wrench>0 0 0 0 -0 0</wrench>
@@ -233,40 +233,40 @@
         </link>
       </model>
       <model name='Green_Dumbbell_0'>
-        <pose>-2.30272 1.5275 0.1905 0 -0 9e-06</pose>
+        <pose>-5.25737 -4.49908 0.1905 0 -0 9e-06</pose>
         <scale>1 1 1</scale>
         <link name='link_0'>
-          <pose>-2.30272 1.5275 0.1905 1.5708 -0 9e-06</pose>
+          <pose>-5.25737 -4.49908 0.1905 1.5708 -0 9e-06</pose>
           <velocity>0.000285 7e-06 8.9e-05 -2.6e-05 0.001497 2.6e-05</velocity>
           <acceleration>0 0 0 -0 -0 -0</acceleration>
           <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='Magenta_Dumbbell'>
-        <pose>-5.25333 -4.47305 0.1905 0 -0 1.7e-05</pose>
+        <pose>3.77375 -1.51278 0.1905 0 -0 1.7e-05</pose>
         <scale>1 1 1</scale>
         <link name='link_0'>
-          <pose>-5.25333 -4.47305 0.1905 1.5708 -0 1.7e-05</pose>
+          <pose>3.77375 -1.51278 0.1905 1.5708 -0 1.7e-05</pose>
           <velocity>-0.000238 -8.1e-05 0.009711 0.000427 -0.001247 3e-06</velocity>
-          <acceleration>0 0 0 0 -0 0</acceleration>
+          <acceleration>0 0 0 -0 -0 -0</acceleration>
           <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='Orange_Dumbbell'>
-        <pose>-5.22044 1.54541 0.1905 -1e-05 -6e-06 -4e-05</pose>
+        <pose>-5.27242 1.54618 0.1905 -1e-05 -6e-06 -4e-05</pose>
         <scale>1 1 1</scale>
         <link name='link_0'>
-          <pose>-5.22044 1.54541 0.1905 1.57079 -6e-06 -4e-05</pose>
+          <pose>-5.27242 1.54618 0.1905 1.57079 -6e-06 -4e-05</pose>
           <velocity>2e-06 0.000704 -0.00024 -0.003713 -5e-06 -4.9e-05</velocity>
           <acceleration>0 0 0 0 -0 0</acceleration>
           <wrench>0 0 0 0 -0 0</wrench>
         </link>
       </model>
       <model name='Red_Dumbbell'>
-        <pose>3.69387 1.51433 0.1905 0 1e-06 -4.2e-05</pose>
+        <pose>3.75437 -7.45367 0.1905 0 1e-06 -4.2e-05</pose>
         <scale>1 1 1</scale>
         <link name='link_0'>
-          <pose>3.69387 1.51433 0.1905 1.5708 1e-06 -4.2e-05</pose>
+          <pose>3.75437 -7.45367 0.1905 1.5708 1e-06 -4.2e-05</pose>
           <velocity>0.000324 7e-06 -5.7e-05 -3e-05 0.001701 2.4e-05</velocity>
           <acceleration>0 0 0 0 -0 0</acceleration>
           <wrench>0 0 0 0 -0 0</wrench>
@@ -706,7 +706,7 @@
     </state>
     <gui fullscreen='0'>
       <camera name='user_camera'>
-        <pose>-12.7169 -1.68105 11.164 0 0.782289 -0.067458</pose>
+        <pose>-8.71606 -3.19324 16.3838 -0 1.1298 -0.015454</pose>
         <view_controller>orbit</view_controller>
         <projection_type>perspective</projection_type>
       </camera>

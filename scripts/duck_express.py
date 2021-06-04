@@ -191,14 +191,19 @@ class DuckExpress(object):
         # Load color maps
         with open(PATH_PREFIX + MAP_NAME + ".json", "r") as infile:
             color_maps = json.load(infile)
-        self.active_color = "green"
-        self.checklist = ["blue", "magenta", "red", "orange", "cyan"]
-        # self.packages_remaining = ["green", "blue", "magenta", "red", "orange", "cyan"]
+        self.active_color = None
+        self.checklist = ["blue", "green", "magenta", "red", "orange", "cyan"]
+        self.packages_remaining = ["green", "blue", "magenta", "red", "orange", "cyan"]
         self.pickup_map = color_maps['pickup']
         self.dropoff_map = color_maps['dropoff']
 
-        self.path = find_path_a_star(np.flip(self.road_map, 0), self.current_node.map_coords, (1, 2))
-        print("current_path:", self.path)
+        self.active_color = self.checklist.pop(0)
+        self.path = find_path_a_star(self.road_map, self.current_node.map_coords, tuple(self.pickup_map[self.active_color]))
+        print("__init__: Active color is", self.active_color)
+        print("__init__: Path:", self.path)
+
+        # self.path = find_path_a_star(np.flip(self.road_map, 0), self.current_node.map_coords, (1, 2))
+        # print("current_path:", self.path)
 
         # Control booleans
         self.on_road = True
@@ -258,8 +263,11 @@ class DuckExpress(object):
         if self.on_road and not self.ignore_road:
             self.get_nav_line_moment()
 
-        if self.turning_towards_dumbbell:
-            self.orient_to_dumbbell(self.active_color)
+        elif self.identifying_dumbbell:
+            self.identify_dumbbell()
+
+        elif self.turning_towards_dumbbell:
+            self.orient_to_object(self.active_color)
 
     def robot_scan_received(self, data):
         if not self.initialized:
@@ -287,7 +295,7 @@ class DuckExpress(object):
     navigation line on the screen. Retuns None if there are no yellow pixels.
     """
     def get_nav_line_moment(self):
-        if self.ignore_road:
+        if self.ignore_road or not self.active_color:
             return
 
         img = self.image_capture
@@ -328,12 +336,64 @@ class DuckExpress(object):
             return None
 
     """
-    orient_to_dumbbell: finds the moment of a dumbbell determined by the color
+    identify_dumbbell: Looks for the dumbbell
+    """
+    def identify_dumbbell(self):
+        if self.on_road:
+            return
+
+        colors = self.packages_remaining
+        colors.remove(self.active_color)
+
+        img = self.image_capture
+
+        self.color_recog_fov = 0.60
+
+        candidates = []
+        for color in colors:
+            # Reduce the horizontal FOV (to avoid looking at adjacent objects of
+            # the same color
+            w, h = self.image_width, self.image_height
+            cv2.rectangle(img, (-w, 0), (int(w * self.color_recog_fov) // 2, h), (0, 0, 0), -1)
+            cv2.rectangle(img, (w - (int(w * self.color_recog_fov) // 2), 0), (2 * w, h), 0, -1)
+
+            # Get the colored pixels in the image
+            color_mask = cv2.inRange(img, self.color_bounds[color][0], self.color_bounds[color][1])        
+            color_target = cv2.bitwise_and(img, img, mask=color_mask)
+
+            # Get the moment of the dumbbell
+            gray_img = cv2.cvtColor(color_target, cv2.COLOR_BGR2GRAY)
+
+            # The default angular velocity. Is zero when an object of a given color
+            # can't be found on screen
+            ang_vel = 0
+            
+            M = cv2.moments(gray_img)
+            if M['m00'] > 0:
+                candidates.append([color, M['m00']])
+
+        if len(candidates) == 0:
+            print("identify_dumbbell: WARNING, no candidates from:", colors)
+            return
+
+        max_value = 0
+        for item in candidates:
+            if item[1] > max_value:
+                max_value = item[1]
+                self.active_color = item[0]
+
+        print("identifying_dumbbell: New color is", self.active_color)
+        self.identifying_dumbbell = False
+        self.turning_towards_dumbbell = True
+
+
+    """
+    orient_to_object: finds the moment of a dumbbell determined by the color
     string. Assumes that the dumbbell is visible (i.e. it's not in front of a
     block of matching color).
     """
-    def orient_to_dumbbell(self, color):
-        if self.on_road:
+    def orient_to_object(self, color):
+        if self.on_road or self.identifying_dumbbell:
             return
 
         img = self.image_capture
@@ -399,28 +459,6 @@ class DuckExpress(object):
             if not self.ignore_object:
                 self.movement_pub.publish(twist)
 
-    """
-    drive_to_house: When the robot has reached a dropoff node, it must offroad to the house's 
-    dropoff zone. This function moves the robot there.
-    """
-    def drive_to_house(self, front_scan):
-        print("Driving to house")
-        if front_scan == math.inf:
-            print("ERROR: drive_to_house: robot sees nothing in front")
-            self.linear = 0
-        elif front_scan > self.house_prox_high:
-            self.linear = 0.1
-        elif front_scan < self.house_prox_low:
-            self.linear = -0.1
-        else:
-            self.ignore_object = True
-            twist = Twist()
-            twist.linear.x = 0
-            twist.angular.z = 0
-            self.movement_pub.publish(twist)
-            self.picked_up_dumbbell = False
-            self.move_to_release()
-
     """""""""""""""""""""""""""""""""
           ROBOT MOVEMENT FUNCTIONS
     """""""""""""""""""""""""""""""""
@@ -433,12 +471,12 @@ class DuckExpress(object):
         try:
             curr_idx = self.directions.index(curr_dir)
         except ValueError:
-            print("Direction \'" + curr_dir + "\' is not valid!")
+            print("direction_to_turn: Direction \'" + curr_dir + "\' is not valid!")
 
         try:
             new_idx = self.directions.index(new_dir)
         except ValueError:
-            print("Direction \'" + new_dir + "\' is not valid!")
+            print("direction_to_turn: Direction \'" + new_dir + "\' is not valid!")
 
         turn = (new_idx - curr_idx) % 4
 
@@ -466,52 +504,52 @@ class DuckExpress(object):
                 self.ignore_road = True
                 self.ignore_object = True
                 self.on_road = False
-                print("Reached destination!")
+                print("adjust_movement: Reached destination!")
                 twist = Twist()
-                # self.road_msg.linear.x = 0
-                # self.road_msg.angular.z = 0
                 twist.linear.x = 0
                 twist.angular.z = 0
-                # self.movement_pub.publish(self.road_msg)
                 self.movement_pub.publish(twist)
 
                 # Make one more 90 degree turn
-                # self.turn_msg.linear.x = 0
                 twist.linear.x = 0
 
                 if self.picked_up_dumbbell:
-                    # self.turn_msg.angular.z = -0.4
+                    self.dropping_off_dumbbell = True
+                
+                turn_left = (self.current_dir == 'n' and self.picked_up_dumbbell) or (self.current_dir == 's' and not self.picked_up_dumbbell)
+                turn_right = (self.current_dir == 's' and self.picked_up_dumbbell) or (self.current_dir == 'n' and not self.picked_up_dumbbell)
+                
+
+                if turn_right:
+                    print("adjust_movement: Turning right")
                     twist.angular.z = -0.4
                     curr_idx = self.directions.index(self.current_dir) + 1
-                
-                    self.dropping_off_dumbbell = True
                 else:
-                    # self.turn_msg.angular.z = 0.4
+                    print("adjust_movement: Turning left")
                     twist.angular.z = 0.4
                     curr_idx = self.directions.index(self.current_dir) - 1
 
-                    self.turning_towards_dumbbell = True
-
                 self.current_dir = self.directions[(curr_idx % 4)]
-                # self.movement_pub.publish(self.turn_msg)
                 self.movement_pub.publish(twist)
 
                 rospy.sleep(4)
 
-                # self.turn_msg.linear.x = 0
-                # self.turn_msg.angular.z = 0
+                if not self.picked_up_dumbbell:
+                    self.identifying_dumbbell = True
+
                 twist.linear.x = 0
                 twist.angular.z = 0
                 # self.movement_pub.publish(self.turn_msg)
                 self.movement_pub.publish(twist)
 
                 self.ignore_object = False
+                print("adjust_movement: self.identifying_dumbbell:", self.identifying_dumbbell)
                 return
 
             self.path.pop(0)
-            print("Current node:", self.current_node)
-            print("Path:", self.path)
-            print("Next node:", self.path[0])
+            print("adjust_movement: Current node:", self.current_node)
+            print("adjust_movement: Path:", self.path)
+            print("adjust_movement: Next node:", self.path[0])
             print("")
 
             next_coords = self.path[0]
@@ -531,15 +569,15 @@ class DuckExpress(object):
             else:
                 raise Exception("adjust_movement: invalid res:", res)
 
-            print("res is", res)
-            print("new cardinal is", new_cardinal)
+            print("adjust_movement: res is", res)
+            print("adjust_movement: new cardinal is", new_cardinal)
 
             direction = self.direction_to_turn(self.current_dir, new_cardinal)
 
-            print("Moving", direction)
+            print("adjust_movement: adjust_movement: Moving", direction)
 
             if direction == "forward":
-                print("Nothing (forward)")
+                print("adjust_movement: Nothing (forward)")
                 return
 
             self.ignore_road = True
@@ -549,19 +587,19 @@ class DuckExpress(object):
             self.movement_pub.publish(self.turn_msg)
 
             if direction == "right":
-                print("Turning right")
+                print("adjust_movement: Turning right")
                 self.turn_msg.angular.z = -0.4
                 curr_idx = self.directions.index(self.current_dir) + 1
 
             elif direction == "left":
-                print("Turning left")
+                print("adjust_movement: Turning left")
                 self.turn_msg.angular.z = 0.4
                 curr_idx = self.directions.index(self.current_dir) - 1
             
             self.turn_msg.linear.x = 0
             self.current_dir = self.directions[(curr_idx % 4)]
 
-            print("Publishing")
+            print("adjust_movement: Publishing")
             self.movement_pub.publish(self.turn_msg)
             rospy.sleep(4)
     
@@ -570,7 +608,7 @@ class DuckExpress(object):
             self.movement_pub.publish(self.turn_msg)
 
             self.ignore_road = False
-            print("Done")
+            print("adjust_movement: Done")
 
     """
     estimate_node: Uses robot's current estimated position to check what the closest 
@@ -581,7 +619,7 @@ class DuckExpress(object):
         nodes = [self.current_node.n, self.current_node.s, self.current_node.e, self.current_node.w]
         
         new_node = None
-        min_distance = 0.3
+        min_distance = 0.35
         old_node = self.current_node
         for node in nodes:
             # Skip if no neighbor
@@ -600,18 +638,16 @@ class DuckExpress(object):
         if new_node:
             self.current_node = new_node
         else:
-            # print("ERROR: robot_scan_received; new_node is null")
             self.current_node = old_node
 
         if old_node != self.current_node:
-            print("Current node is:", str(self.current_node))
+            print("estimate_node: Current node is:", str(self.current_node))
 
     """
     drive_to_dumbbell: Once a dumbbell has been identified, this function drives the robot within 
     arm's reach of it
     """
     def drive_to_dumbbell(self, front_scan):
-        print("Driving to dumbbell")
         if not self.can_see_dumbbell or front_scan == math.inf:
             self.linear = 0
         elif front_scan > self.db_prox_high:
@@ -619,6 +655,7 @@ class DuckExpress(object):
         elif front_scan < self.db_prox_low:
             self.linear = -0.1
         else:
+            print("drive_to_dumbbell: picking up dumbbell")
             self.ignore_object = True
             twist = Twist()
             twist.linear.x = 0
@@ -629,11 +666,33 @@ class DuckExpress(object):
             self.move_to_grabbed()
 
     """
+    drive_to_house: When the robot has reached a dropoff node, it must offroad to the house's 
+    dropoff zone. This function moves the robot there.
+    """
+    def drive_to_house(self, front_scan):
+        # print("Driving to house")
+        if front_scan == math.inf:
+            print("ERROR: drive_to_house: robot sees nothing in front")
+            self.linear = 0
+        elif front_scan > self.house_prox_high:
+            self.linear = 0.1
+        elif front_scan < self.house_prox_low:
+            self.linear = -0.1
+        else:
+            self.ignore_object = True
+            twist = Twist()
+            twist.linear.x = 0
+            twist.angular.z = 0
+            self.movement_pub.publish(twist)
+            self.picked_up_dumbbell = False
+            self.move_to_release()
+
+    """
     return_to_road: Once a dumbbell has been picked or delivered, this function returns the robot
     to the road
     """
     def return_to_road(self):
-        print("Returning to the road!")
+        print("return_to_road: Returning to the road!")
         # Back up to the road
         self.road_msg.linear.x = -0.15
         self.road_msg.angular.z = 0.0
@@ -652,15 +711,15 @@ class DuckExpress(object):
             dest_coords = self.dropoff_map[self.active_color]
         else:
             self.active_color = self.checklist.pop(0)
-            print("Seeking", self.active_color, "now")
+            print("return_to_road: Seeking", self.active_color, "now")
             dest_coords = self.pickup_map[self.active_color]
             self.move_to_ready()
 
         # Recalculate path
-        print("Current node:", self.current_node)
-        print("Destination node:", dest_coords)
+        print("return_to_road: Current node:", self.current_node)
+        print("return_to_road: Destination node:", dest_coords)
         self.path = find_path_a_star(self.road_map, self.current_node.map_coords, tuple(dest_coords))
-        print("New path:", self.path)
+        print("return_to_road: New path:", self.path)
         self.ignore_road = False
         self.on_road = True
 
@@ -680,21 +739,21 @@ class DuckExpress(object):
         self.move_arm([0.0, 0.55, 0.3, -0.85])
         self.move_gripper([0.018, 0.018])
 
-        print("Arm ready to grab!")
+        print("move_to_ready: Arm ready to grab!")
         rospy.sleep(3)
 
     def move_to_grabbed(self):
         self.move_gripper([0.009, -0.009])
         self.move_arm([0, -0.25, -0.35, -0.85])
 
-        print("Dumbbell is grabbed!")
+        print("move_to_grabbed: Dumbbell is grabbed!")
         rospy.sleep(3)
 
     def move_to_release(self):
         self.move_arm([0, -0.35, -0.15, 0.5])
         self.move_gripper([0.01, 0.01])
 
-        print("Dumbbell has been released!")
+        print("move_to_release: Dumbbell has been released!")
         rospy.sleep(3)
 
 
@@ -710,7 +769,7 @@ class DuckExpress(object):
         """ The purpose of align_occupancy_grid is to map the road map onto the occupancy 
             grid. Basically, we want to get the real points of our allowable nodes so that
             we can run A_Star on it """
-        print(self.map.info)
+        print("align_occupancy_grid:", self.map.info)
         
         timer = 5
         decrement = 0
@@ -758,7 +817,7 @@ class DuckExpress(object):
 
         # Should only be one item left - our origin/bottom left house
         if len(candidates) != 1:
-            print("ERROR: align_occupancy grid found", len(candidates), "candidates")
+            print("ERROR: align_occupancy_grid found", len(candidates), "candidates")
 
         # Use the road_size to estimate where the road is (since the robot starts on the road and not on the house)
         candidate = candidates[0]
@@ -777,7 +836,7 @@ class DuckExpress(object):
                     new_node = Node(new_node_name, 0, real_coords, (i, j))
                     self.node_map[new_node_name] = new_node
 
-        print(self.road_map)
+        print("align_occupancy_grid", self.road_map)
         print("")
 
         # Initialize neighbors
@@ -810,7 +869,7 @@ class DuckExpress(object):
         self.current_node = self.node_map['(0, 0)']
         self.current_pos = list(self.current_node.real_coords)
 
-        print("Current node is:", repr(self.current_node))
+        print("align_occupancy_grid: Current node is:", repr(self.current_node))
 
     def run(self):
         rospy.spin()
