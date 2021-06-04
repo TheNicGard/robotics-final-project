@@ -192,6 +192,8 @@ class DuckExpress(object):
         with open(PATH_PREFIX + MAP_NAME + ".json", "r") as infile:
             color_maps = json.load(infile)
         self.active_color = "green"
+        self.checklist = ["blue", "magenta", "red", "orange", "cyan"]
+        # self.packages_remaining = ["green", "blue", "magenta", "red", "orange", "cyan"]
         self.pickup_map = color_maps['pickup']
         self.dropoff_map = color_maps['dropoff']
 
@@ -207,6 +209,7 @@ class DuckExpress(object):
         self.picked_up_dumbbell = False
         self.can_see_dumbbell = False
         self.dropping_off_dumbbell = False
+        self.identifying_dumbbell = True
 
         # the farthest and closest distance a robot can be to pick up an object
         self.db_prox_high = 0.21
@@ -263,15 +266,14 @@ class DuckExpress(object):
             return 
 
         if self.driving_towards_dumbbell:
-            front_scan = data.ranges[0]
-            self.drive_to_dumbbell(front_scan)
+            self.drive_to_dumbbell(data.ranges[0])
 
         elif self.on_road:
             self.estimate_node()
             self.adjust_movement()
 
         elif self.dropping_off_dumbbell:
-            self.drive_to_house(front_scan)
+            self.drive_to_house(data.ranges[0])
 
         else:
             self.return_to_road()
@@ -316,7 +318,7 @@ class DuckExpress(object):
             err = (self.image_width / 2) - cx
             k_p = 1.0 / 500.0
             twist = Twist()
-            twist.linear.x = 0.26
+            twist.linear.x = 0.15
             twist.angular.z = k_p * err
             if not self.ignore_road:
                 self.movement_pub.publish(twist)
@@ -417,7 +419,7 @@ class DuckExpress(object):
             twist.angular.z = 0
             self.movement_pub.publish(twist)
             self.picked_up_dumbbell = False
-            self.move_to_released()
+            self.move_to_release()
 
     """""""""""""""""""""""""""""""""
           ROBOT MOVEMENT FUNCTIONS
@@ -461,36 +463,49 @@ class DuckExpress(object):
         # print("Current:", current_coords, "Next:", next_coords)
         if next_coords == current_coords:
             if len(self.path) == 1:
-                print("Reached destination!")
-                self.road_msg.linear.x = 0
-                self.road_msg.angular.z = 0
-                self.movement_pub.publish(self.road_msg)
                 self.ignore_road = True
-                self.ignore_object = False
+                self.ignore_object = True
                 self.on_road = False
+                print("Reached destination!")
+                twist = Twist()
+                # self.road_msg.linear.x = 0
+                # self.road_msg.angular.z = 0
+                twist.linear.x = 0
+                twist.angular.z = 0
+                # self.movement_pub.publish(self.road_msg)
+                self.movement_pub.publish(twist)
 
                 # Make one more 90 degree turn
-                self.turn_msg.linear.x = 0
+                # self.turn_msg.linear.x = 0
+                twist.linear.x = 0
 
                 if self.picked_up_dumbbell:
-                    self.turn_msg.angular.z = -0.4
+                    # self.turn_msg.angular.z = -0.4
+                    twist.angular.z = -0.4
                     curr_idx = self.directions.index(self.current_dir) + 1
                 
                     self.dropping_off_dumbbell = True
                 else:
-                    self.turn_msg.angular.z = 0.4
+                    # self.turn_msg.angular.z = 0.4
+                    twist.angular.z = 0.4
                     curr_idx = self.directions.index(self.current_dir) - 1
 
                     self.turning_towards_dumbbell = True
 
                 self.current_dir = self.directions[(curr_idx % 4)]
-                self.movement_pub.publish(self.turn_msg)
+                # self.movement_pub.publish(self.turn_msg)
+                self.movement_pub.publish(twist)
 
                 rospy.sleep(4)
 
-                self.turn_msg.linear.x = 0
-                self.turn_msg.angular.z = 0
-                self.movement_pub.publish(self.turn_msg)
+                # self.turn_msg.linear.x = 0
+                # self.turn_msg.angular.z = 0
+                twist.linear.x = 0
+                twist.angular.z = 0
+                # self.movement_pub.publish(self.turn_msg)
+                self.movement_pub.publish(twist)
+
+                self.ignore_object = False
                 return
 
             self.path.pop(0)
@@ -613,9 +628,6 @@ class DuckExpress(object):
             self.picked_up_dumbbell = True
             self.move_to_grabbed()
 
-   
-    
-
     """
     return_to_road: Once a dumbbell has been picked or delivered, this function returns the robot
     to the road
@@ -623,11 +635,11 @@ class DuckExpress(object):
     def return_to_road(self):
         print("Returning to the road!")
         # Back up to the road
-        self.road_msg.linear.x = -0.26
+        self.road_msg.linear.x = -0.15
         self.road_msg.angular.z = 0.0
 
         self.movement_pub.publish(self.road_msg)
-        rospy.sleep(3)
+        rospy.sleep(3.5)
 
 
         self.road_msg.linear.x = 0.0
@@ -639,6 +651,8 @@ class DuckExpress(object):
         if self.picked_up_dumbbell:
             dest_coords = self.dropoff_map[self.active_color]
         else:
+            self.active_color = self.checklist.pop(0)
+            print("Seeking", self.active_color, "now")
             dest_coords = self.pickup_map[self.active_color]
             self.move_to_ready()
 
@@ -670,11 +684,8 @@ class DuckExpress(object):
         rospy.sleep(3)
 
     def move_to_grabbed(self):
-        self.move_gripper([0.008, -0.008])     
-        self.move_arm([0, 0.45, -0.75, -0.3])
-        rospy.sleep(1)
-
-        self.move_arm([0, -1.18, 0.225, -0.3])
+        self.move_gripper([0.009, -0.009])
+        self.move_arm([0, -0.25, -0.35, -0.85])
 
         print("Dumbbell is grabbed!")
         rospy.sleep(3)
