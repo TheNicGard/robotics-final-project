@@ -7,6 +7,25 @@ Our robot can pick up and deliver packages to the correct destination. Each pack
 ![A demonstration of the robot's execution.](demo.gif)
 *A demonstration of the robot's execution.*
 
+The demo can be run as follows:
+
+In terminal 1:
+
+`$ roscore`
+
+In terminal 2:
+
+`$ roslaunch robotics-final-project duck_express.launch`
+
+In terminal 3:
+
+`$ rosrun robotics-final-project duck_express.py`
+
+
+Note, that in terminals 2 and 3, you will get many warnings of the form:
+`TF_REPEATED_DATA ignoring data with redundant timestamp for frame odom at time 136.417000 according to authority unknown_publisher`
+This is a [known issue](https://github.com/ros/geometry2/issues/467), but as mentioned in the linked thread it can be safely ignored. Unfortuantely, there is no way to suppress it, but it only occurs when the robot is still. 
+
 ## System Architecture
 The heart of our design is the [A* (pronounced "A star") search algorithm](https://en.wikipedia.org/wiki/A*_search_algorithm). A* is a modified version of Dijkstra's algorithm that uses a heuristic to guess the remaining distance of a path. It stops once the first path to the destination has been found. In this way, the algorithm is not guaranteed to return the shortest possible path (in fact, it usually will not if the shortest path has a high up-front cost), but if the heuristic is good enough the result will be nearly optimal. 
 
