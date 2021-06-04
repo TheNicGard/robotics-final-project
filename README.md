@@ -5,11 +5,15 @@ The DuckExpress robot drives around a neighborhood of colored houses and deliver
 Our robot can pick up and deliver packages to the correct destination. Each package is a colored dumbbell and must be delivered to the house of the same color. The robot can successfully grab the package, plot the shortest course to the destination, and deliver the package there.
 
 ![A demonstration of the robot's execution.](demo.gif)
+*A demonstration of the robot's execution.*
 
 ## System Architecture
 The heart of our design is the [A* (pronounced "A star") search algorithm](https://en.wikipedia.org/wiki/A*_search_algorithm). A* is a modified version of Dijkstra's algorithm that uses a heuristic to guess the remaining distance of a path. It stops once the first path to the destination has been found. In this way, the algorithm is not guaranteed to return the shortest possible path (in fact, it usually will not if the shortest path has a high up-front cost), but if the heuristic is good enough the result will be nearly optimal. 
 
 In our code, the A* algorithm is implemented in `pathing.py`, primarily in `find_path_a_star()`. To navigate the world, the robot uses a `.pgm` map generated with SLAM to locate the upper-leftmost building in the Gazebo world. It then estimates the location of "nodes" every 1.5 meters to the edge of the map. These nodes are then cross-referenced with an input matrix to check which nodes are actually present. Finally, the robot inputs a "color map" as a `.json` to determine the color of each house. 
+
+![A depiction of where nodes are placed on the map for A* pathing.](nodes.png)
+*A depiction of where nodes are placed on the map for A\* pathing.*
 
 In our demo, we use `neighborhood.world` as our Gazebo world, `neighborhood_simple.pgm` and `neighborhood_simple.yaml` as our SLAM map, `neighborhood_simple.txt` as our node matrix, and `neighborhood_simple.json` as our color map. 
 
